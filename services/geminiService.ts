@@ -738,7 +738,7 @@ ${scenePrompt}
 4. Clean, commercial aesthetic
 5. No text overlays`,
       image_input: imageUrls.length > 0 ? imageUrls : undefined,
-      aspect_ratio: "1:1",
+      aspect_ratio: "16:9",
       resolution: "1K",
       output_format: "png",
     });
@@ -767,7 +767,7 @@ ${scenePrompt}
 4. Product should be the main focus
 5. No text overlays`,
         output_format: "png",
-        image_size: "1:1",
+        image_size: "16:9",
       });
       
       const resultUrls = await waitForNanoBananaTask(taskId);
@@ -792,7 +792,7 @@ ${scenePrompt}
 5. No text overlays`,
       image_urls: imageUrls,
       output_format: "png",
-      image_size: "1:1",
+      image_size: "16:9",
     });
     
     const resultUrls = await waitForNanoBananaTask(taskId);
@@ -1024,7 +1024,7 @@ ${editPrompt}
     prompt: finalPrompt,
     image_urls: imageUrls,
     output_format: "png",
-    image_size: "1:1",
+    image_size: "16:9",
   });
   
   const resultUrls = await waitForNanoBananaTask(taskId);
