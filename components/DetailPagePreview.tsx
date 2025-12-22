@@ -989,7 +989,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                          <img 
                            src={featureImg.data.url} 
                            alt={feature.title} 
-                           className="w-full h-auto object-cover transition-transform duration-200"
+                           className="w-full h-auto object-contain transition-transform duration-200"
                            style={{ 
                              transform: `scale(${(imageScales[featureImg.index] || 100) / 100})`,
                              transformOrigin: 'center center'
