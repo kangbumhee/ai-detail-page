@@ -512,36 +512,41 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     if (!detailPageRef.current) return;
     
     try {
-      // 1. 모든 이미지를 먼저 Base64로 변환
+      // 1. 모든 이미지를 CORS 프록시를 통해 Base64로 변환
       const images = detailPageRef.current.querySelectorAll('img');
       const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
       
+      // CORS 프록시 URL (무료 프록시 서비스)
+      const corsProxy = 'https://corsproxy.io/?';
+      
       // 이미지들을 Base64로 변환
-      await Promise.all(
-        Array.from(images).map(async (img) => {
-          if (img.src && !img.src.startsWith('data:')) {
-            try {
-              originalSrcs.push({ img, src: img.src });
-              
-              // 프록시를 통해 이미지 가져오기
-              const response = await fetch(img.src);
-              const blob = await response.blob();
-              const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(blob);
-              });
-              
-              img.src = base64;
-            } catch (e) {
-              console.warn('이미지 변환 실패:', img.src, e);
-            }
+      for (const img of Array.from(images)) {
+        if (img.src && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
+          try {
+            originalSrcs.push({ img, src: img.src });
+            
+            // CORS 프록시를 통해 이미지 가져오기
+            const proxyUrl = corsProxy + encodeURIComponent(img.src);
+            const response = await fetch(proxyUrl);
+            const blob = await response.blob();
+            
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            
+            img.src = base64;
+          } catch (e) {
+            console.warn('이미지 변환 실패 (프록시):', img.src, e);
+            // 실패해도 계속 진행
           }
-        })
-      );
+        }
+      }
       
       // 잠시 대기 (이미지 로드 완료)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // 2. 숨긴 섹션들을 임시로 display:none 처리
       const previewElement = detailPageRef.current;
@@ -562,7 +567,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 15000,
+        imageTimeout: 30000,
       });
       
       // 4. 숨긴 섹션 다시 표시
@@ -580,6 +585,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       link.download = `detail-page-${Date.now()}.jpg`;
       link.href = canvas.toDataURL('image/jpeg', 0.95);
       link.click();
+      
     } catch (error) {
       console.error('저장 실패:', error);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
