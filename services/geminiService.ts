@@ -693,7 +693,8 @@ const getFallbackImage = () => {
 export const generateSingleScene = async (
   modelName: string,
   referenceImages: string[],
-  scenePrompt: string
+  scenePrompt: string,
+  aspectRatio: string = "16:9"
 ): Promise<string> => {
   // 모델 선택: pro면 nano-banana-pro, 아니면 nano-banana-edit (참조 이미지 지원)
   const isProModel = modelName.toLowerCase().includes("pro");
@@ -738,7 +739,7 @@ ${scenePrompt}
 4. Clean, commercial aesthetic
 5. No text overlays`,
       image_input: imageUrls.length > 0 ? imageUrls : undefined,
-      aspect_ratio: "16:9",
+      aspect_ratio: aspectRatio,
       resolution: "1K",
       output_format: "png",
     });
@@ -767,7 +768,7 @@ ${scenePrompt}
 4. Product should be the main focus
 5. No text overlays`,
         output_format: "png",
-        image_size: "16:9",
+        image_size: aspectRatio,
       });
       
       const resultUrls = await waitForNanoBananaTask(taskId);
@@ -792,7 +793,7 @@ ${scenePrompt}
 5. No text overlays`,
       image_urls: imageUrls,
       output_format: "png",
-      image_size: "16:9",
+      image_size: aspectRatio,
     });
     
     const resultUrls = await waitForNanoBananaTask(taskId);
@@ -900,7 +901,9 @@ export const generateVariedScenes = async (
       try {
         // 각 이미지마다 고유한 variation 추가
         const uniquePrompt = `${prompt} [Unique variation: style-${index}, attempt-${attempts}, seed-${Date.now()}-${Math.random().toString(36).substring(7)}]`;
-        const image = await generateSingleScene(modelName, data.images, uniquePrompt);
+        // 첫 번째 이미지(index 0)는 1:1, 나머지는 16:9
+        const aspectRatio = index === 0 ? "1:1" : "16:9";
+        const image = await generateSingleScene(modelName, data.images, uniquePrompt, aspectRatio);
         return { url: image, prompt };
       } catch (e: any) {
         attempts++;
