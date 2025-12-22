@@ -254,15 +254,28 @@ const App: React.FC = () => {
   };
 
   const handleRegenerateImage = async (index: number, prompt: string) => {
-     const modelName = state.productData.selectedModel === 'pro' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
-     // Use original images as reference
-     const newImageUrl = await generateSingleScene(modelName, state.productData.images, prompt);
-     
-     setState(prev => {
-       const updatedImages = [...prev.generatedImages];
-       updatedImages[index] = { ...updatedImages[index], url: newImageUrl };
-       return { ...prev, generatedImages: updatedImages };
-     });
+    try {
+      // 로딩 상태 설정
+      setState(prev => ({ ...prev, isEditingImage: true }));
+      
+      // 모델명 결정: pro면 nano-banana-pro, 아니면 nano-banana-edit
+      const modelName = state.productData.selectedModel === 'pro' ? 'nano-banana-pro' : 'nano-banana-edit';
+      
+      // 참고 이미지(원본 제품 이미지) 포함하여 재생성
+      const referenceImages = state.productData.images || [];
+      const newImageUrl = await generateSingleScene(modelName, referenceImages, prompt);
+      
+      // 이미지 업데이트
+      setState(prev => {
+        const updatedImages = [...prev.generatedImages];
+        updatedImages[index] = { ...updatedImages[index], url: newImageUrl, prompt };
+        return { ...prev, generatedImages: updatedImages, isEditingImage: false };
+      });
+    } catch (error) {
+      console.error('이미지 재생성 실패:', error);
+      setState(prev => ({ ...prev, isEditingImage: false }));
+      alert('이미지 재생성에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const handleCopyUpdate = (sectionKey: keyof GeneratedCopy, newData: any) => {
