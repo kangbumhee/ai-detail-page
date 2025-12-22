@@ -961,11 +961,13 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
           {!hiddenSections.has('features') && (
           <div className="flex flex-col gap-0 relative group" data-section="features">
              <SectionEditControl 
-               sectionName="주요 특징" 
-               onUpdate={(fb) => handleSectionUpdate('features', fb)} 
+               sectionName="주요 특징"
+               onUpdate={(fb) => handleSectionUpdate('features', fb)}
              />
              {features.map((feature, idx) => {
-               const featureImg = featureImages[idx % featureImages.length]; 
+               const featureImg = featureImages[idx % featureImages.length];
+               if (!featureImg) return null;
+               
                return (
                  <div key={idx} className={`flex flex-col ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}>
                     <div className="py-16 px-8 text-center max-w-3xl mx-auto">
@@ -976,24 +978,39 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                        <p className="text-xl text-blue-600 font-medium mb-6">{feature.subtitle}</p>
                        <p className="text-slate-600 text-base md:text-lg leading-relaxed break-keep">{feature.description}</p>
                     </div>
-                    <div className="w-full overflow-hidden relative group">
+                    
+                    <div className="w-full relative group">
                        <ImageFeedbackControl 
-                          imageIndex={featureImg.index} 
-                          currentImage={featureImg.data} 
+                          imageIndex={featureImg.index}
+                          currentImage={featureImg.data}
                           onUpdate={onImageUpdate}
                           onRegenerate={onRegenerateImage}
                           originalImages={originalImages}
                           onScaleChange={handleScaleChange}
                        />
-                       <div className="relative w-full overflow-hidden">
+                       <div 
+                         className="relative w-full"
+                         style={{ 
+                           maxHeight: '600px',
+                           display: 'flex',
+                           justifyContent: 'center',
+                           alignItems: 'center',
+                           backgroundColor: idx % 2 === 0 ? '#f8fafc' : '#ffffff'
+                         }}
+                       >
                          <img 
-                           src={featureImg.data.url} 
-                           alt={feature.title} 
-                           className="w-full h-auto object-contain transition-transform duration-200"
-                           style={{ 
-                             transform: `scale(${(imageScales[featureImg.index] || 100) / 100})`,
-                             transformOrigin: 'center center'
-                           }}
+                            src={featureImg.data.url}
+                            alt={feature.title}
+                            style={{ 
+                              maxWidth: '100%',
+                              maxHeight: '600px',
+                              width: 'auto',
+                              height: 'auto',
+                              objectFit: 'contain',
+                              transform: `scale(${(imageScales[featureImg.index] || 100) / 100})`,
+                              transformOrigin: 'center center',
+                              transition: 'transform 0.2s'
+                            }}
                          />
                        </div>
                     </div>
