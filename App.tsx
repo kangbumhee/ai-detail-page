@@ -333,7 +333,8 @@ const App: React.FC = () => {
       },
       generatedImages: filteredImages,
       generatedCopy: state.generatedCopy,
-      thumbnail: filteredImages[0]?.url || ''
+      thumbnail: filteredImages[0]?.url || '',
+      originalImages: state.productData.images.filter(url => !url.startsWith('data:'))  // 외부 URL만 저장
     };
     
     setHistory(prev => [newItem, ...prev].slice(0, 10)); // 최대 10개로 줄임
@@ -342,14 +343,18 @@ const App: React.FC = () => {
 
   // 히스토리에서 불러오기
   const loadFromHistory = (item: HistoryItem) => {
-    setState(prev => ({
-      ...prev,
+    setState({
       step: 'preview',
-      productData: item.productData,
+      productData: {
+        ...item.productData,
+        images: item.originalImages || item.productData.images || []  // 참고 이미지 복원
+      },
+      originalImages: item.originalImages || [],
       generatedImages: item.generatedImages,
+      mainImageIndex: 0,
       generatedCopy: item.generatedCopy,
-      mainImageIndex: 0
-    }));
+      isEditingImage: false
+    });
     setShowHistory(false);
   };
 
@@ -370,7 +375,8 @@ const App: React.FC = () => {
           .filter(img => !img.url.startsWith('data:'))
           .slice(0, 4) // 최대 4개만
           .map(img => img.url),
-        mainImageIndex: state.mainImageIndex
+        mainImageIndex: state.mainImageIndex,
+        originalImages: state.productData.images.filter(url => !url.startsWith('data:'))  // 참고 이미지 추가
       };
       
       const jsonString = JSON.stringify(shareData);
@@ -401,21 +407,21 @@ const App: React.FC = () => {
         const decoded = JSON.parse(decodeURIComponent(atob(shareParam)));
         
         // 공유 데이터로 프리뷰 모드 설정
-        setState(prev => ({
-          ...prev,
+        setState({
           step: 'preview',
           productData: {
-            ...prev.productData,
-            name: decoded.productName || '',
-            platform: decoded.platform || 'smartstore'
+            ...decoded.productData,
+            images: decoded.originalImages || decoded.productData?.images || []  // 참고 이미지 복원
           },
+          originalImages: decoded.originalImages || [],
           generatedImages: decoded.images.map((url: string) => ({
             url,
             prompt: ''
           })),
           generatedCopy: decoded.copy,
-          mainImageIndex: 0
-        }));
+          mainImageIndex: decoded.mainImageIndex || 0,
+          isEditingImage: false
+        });
         
         // URL에서 share 파라미터 제거
         window.history.replaceState({}, '', window.location.pathname);

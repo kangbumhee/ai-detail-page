@@ -49,4 +49,5 @@ export interface HistoryItem {
   generatedImages: GeneratedImage[];
   generatedCopy: GeneratedCopy;
   thumbnail: string;
+  originalImages?: string[];  // 참고 이미지 URL 추가
 }
