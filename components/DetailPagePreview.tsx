@@ -976,7 +976,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                        <p className="text-xl text-blue-600 font-medium mb-6">{feature.subtitle}</p>
                        <p className="text-slate-600 text-base md:text-lg leading-relaxed break-keep">{feature.description}</p>
                     </div>
-                    <div className="w-full aspect-[16/10] md:aspect-[2/1] overflow-hidden relative group">
+                    <div className="w-full overflow-hidden relative group">
                        <ImageFeedbackControl 
                           imageIndex={featureImg.index} 
                           currentImage={featureImg.data} 
@@ -985,11 +985,11 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                           originalImages={originalImages}
                           onScaleChange={handleScaleChange}
                        />
-                       <div className="relative w-full h-full overflow-hidden">
+                       <div className="relative w-full overflow-hidden">
                          <img 
                            src={featureImg.data.url} 
                            alt={feature.title} 
-                           className="w-full h-full object-cover transition-transform duration-200"
+                           className="w-full h-auto object-cover transition-transform duration-200"
                            style={{ 
                              transform: `scale(${(imageScales[featureImg.index] || 100) / 100})`,
                              transformOrigin: 'center center'
