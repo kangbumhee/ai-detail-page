@@ -512,7 +512,38 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     if (!detailPageRef.current) return;
     
     try {
-      // 숨긴 섹션들을 임시로 display:none 처리
+      // 1. 모든 이미지를 먼저 Base64로 변환
+      const images = detailPageRef.current.querySelectorAll('img');
+      const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
+      
+      // 이미지들을 Base64로 변환
+      await Promise.all(
+        Array.from(images).map(async (img) => {
+          if (img.src && !img.src.startsWith('data:')) {
+            try {
+              originalSrcs.push({ img, src: img.src });
+              
+              // 프록시를 통해 이미지 가져오기
+              const response = await fetch(img.src);
+              const blob = await response.blob();
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+              
+              img.src = base64;
+            } catch (e) {
+              console.warn('이미지 변환 실패:', img.src, e);
+            }
+          }
+        })
+      );
+      
+      // 잠시 대기 (이미지 로드 완료)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 2. 숨긴 섹션들을 임시로 display:none 처리
       const previewElement = detailPageRef.current;
       const hiddenElements: HTMLElement[] = [];
       
@@ -524,27 +555,34 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         }
       });
       
+      // 3. html2canvas 실행
       const canvas = await html2canvas(previewElement, {
+        scale: 2,
         useCORS: true,
         allowTaint: true,
-        scale: 2 
+        backgroundColor: '#ffffff',
+        logging: false,
+        imageTimeout: 15000,
       });
       
-      // 숨긴 섹션 다시 표시
+      // 4. 숨긴 섹션 다시 표시
       hiddenElements.forEach(el => {
         el.style.display = '';
       });
       
-      const url = canvas.toDataURL("image/jpeg", 0.9);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${productData.name}_상세페이지.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error("Screenshot failed", err);
-      alert("상세페이지 저장 중 오류가 발생했습니다.");
+      // 5. 원본 이미지 src 복원
+      originalSrcs.forEach(({ img, src }) => {
+        img.src = src;
+      });
+      
+      // 6. 다운로드
+      const link = document.createElement('a');
+      link.download = `detail-page-${Date.now()}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+    } catch (error) {
+      console.error('저장 실패:', error);
+      alert('저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
