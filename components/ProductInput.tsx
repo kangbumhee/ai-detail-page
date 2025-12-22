@@ -35,6 +35,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
   const [isSearching, setIsSearching] = useState(false);
   const [isAnalyzingFile, setIsAnalyzingFile] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -75,6 +76,61 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  // 드래그 앤 드롭 핸들러들
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const imageFiles = Array.from(files).filter(file => 
+        file.type.startsWith('image/')
+      );
+      
+      if (imageFiles.length === 0) {
+        setToast({ message: '이미지 파일만 업로드 가능합니다.', type: 'error' });
+        return;
+      }
+      
+      // 기존 handleImageChange 로직 재사용
+      const newImages: string[] = [];
+      const fileList = imageFiles.slice(0, 5) as File[];
+      let processed = 0;
+      
+      fileList.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            newImages.push(reader.result);
+          }
+          processed++;
+          if (processed === fileList.length) {
+            setData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
   };
 
   const handleSearch = async () => {
@@ -309,8 +365,16 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               <span className="text-sm font-normal text-slate-400">(여러 장 선택 가능)</span>
             </label>
             <div 
-              className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-purple-400 hover:bg-purple-50/50 transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-lg"
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
+                isDragging 
+                  ? 'border-purple-500 bg-purple-100 scale-[1.02]' 
+                  : 'border-slate-300 hover:border-purple-400 hover:bg-purple-50/50'
+              }`}
               onClick={handleImageUpload}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
             >
               <input 
                 type="file" 
@@ -343,9 +407,15 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               ) : (
                 <>
                   <div className="text-4xl mb-3">🖼️</div>
-                  <p className="text-slate-600 font-medium text-base">클릭하여 이미지 업로드</p>
-                  <p className="text-slate-400 text-sm mt-1">또는 파일을 여기에 드래그</p>
-                  <p className="text-purple-500 text-sm mt-3">💡 깨끗한 흰색 배경 이미지가 가장 좋아요</p>
+                  <p className="text-slate-600 font-medium text-base">
+                    {isDragging ? '여기에 놓으세요!' : '클릭 또는 드래그하여 이미지 업로드'}
+                  </p>
+                  {!isDragging && (
+                    <>
+                      <p className="text-slate-400 text-sm mt-1">또는 파일을 여기에 드래그</p>
+                      <p className="text-purple-500 text-sm mt-3">💡 깨끗한 흰색 배경 이미지가 가장 좋아요</p>
+                    </>
+                  )}
                 </>
               )}
             </div>

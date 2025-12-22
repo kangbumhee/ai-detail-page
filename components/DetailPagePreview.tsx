@@ -191,18 +191,49 @@ const ImageFeedbackControl: React.FC<{
           </button>
           
           {/* 이미지 저장 버튼 */}
-          <a
-            href={currentImage.url}
-            download={`image_${imageIndex + 1}.png`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              try {
+                // CORS 프록시를 통해 이미지 가져오기
+                const corsProxy = 'https://corsproxy.io/?';
+                const imageUrl = currentImage.url;
+                
+                let blob;
+                if (imageUrl.startsWith('data:')) {
+                  // Base64 이미지인 경우
+                  const response = await fetch(imageUrl);
+                  blob = await response.blob();
+                } else {
+                  // 외부 URL인 경우 프록시 사용
+                  const proxyUrl = corsProxy + encodeURIComponent(imageUrl);
+                  const response = await fetch(proxyUrl);
+                  blob = await response.blob();
+                }
+                
+                // 다운로드 링크 생성
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `image_${imageIndex + 1}_${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+              } catch (error) {
+                console.error('이미지 저장 실패:', error);
+                alert('이미지 저장에 실패했습니다.');
+              }
+            }}
             className="bg-green-600/80 text-white px-2 py-1.5 shadow-lg hover:bg-green-700 transition-all backdrop-blur-sm flex items-center gap-1 text-xs font-bold border border-white/20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
             저장
-          </a>
+          </button>
           
           {/* 이미지 불러오기 버튼 */}
           <label className="bg-blue-600/80 text-white px-2 py-1.5 shadow-lg hover:bg-blue-700 transition-all backdrop-blur-sm flex items-center gap-1 text-xs font-bold border border-white/20 cursor-pointer">
@@ -794,7 +825,6 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         <div className="bg-white border-b border-slate-200 p-6 relative group" data-section="header">
            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
              <div className="space-y-2 flex-1">
-                <span className="text-blue-600 font-bold text-sm tracking-wide">공식 판매처 인증 ✅</span>
                 {!hiddenSections.has('pricing') && (
                 <div data-section="pricing">
                   <h1 className="text-2xl font-medium text-slate-900 leading-snug break-keep">{productData.name}</h1>
