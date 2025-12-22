@@ -519,34 +519,67 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       // CORS 프록시 URL (무료 프록시 서비스)
       const corsProxy = 'https://corsproxy.io/?';
       
-      // 이미지들을 Base64로 변환
+      console.log(`총 ${images.length}개의 이미지 처리 시작`);
+      
+      // 이미지들을 Base64로 변환 (각 이미지 로드 완료까지 대기)
+      const imageLoadPromises: Promise<void>[] = [];
+      
       for (const img of Array.from(images)) {
         if (img.src && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
-          try {
-            originalSrcs.push({ img, src: img.src });
-            
-            // CORS 프록시를 통해 이미지 가져오기
-            const proxyUrl = corsProxy + encodeURIComponent(img.src);
-            const response = await fetch(proxyUrl);
-            const blob = await response.blob();
-            
-            const base64 = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-            
-            img.src = base64;
-          } catch (e) {
-            console.warn('이미지 변환 실패 (프록시):', img.src, e);
-            // 실패해도 계속 진행
-          }
+          const loadPromise = (async () => {
+            try {
+              originalSrcs.push({ img, src: img.src });
+              
+              console.log('프록시를 통해 이미지 가져오기:', img.src);
+              
+              // CORS 프록시를 통해 이미지 가져오기
+              const proxyUrl = corsProxy + encodeURIComponent(img.src);
+              console.log('프록시 URL:', proxyUrl);
+              
+              const response = await fetch(proxyUrl);
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              const blob = await response.blob();
+              console.log('Blob 가져오기 성공, 크기:', blob.size);
+              
+              const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  console.log('Base64 변환 완료');
+                  resolve(reader.result as string);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              
+              // 이미지 src 교체 및 로드 완료 대기
+              await new Promise<void>((resolve, reject) => {
+                img.onload = () => {
+                  console.log('이미지 로드 완료 (Base64)');
+                  resolve();
+                };
+                img.onerror = () => {
+                  console.error('이미지 로드 실패 (Base64)');
+                  reject(new Error('이미지 로드 실패'));
+                };
+                img.src = base64;
+              });
+            } catch (e) {
+              console.warn('이미지 변환 실패 (프록시):', img.src, e);
+              // 실패해도 계속 진행
+            }
+          })();
+          
+          imageLoadPromises.push(loadPromise);
         }
       }
       
-      // 잠시 대기 (이미지 로드 완료)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 모든 이미지 변환 및 로드 완료까지 대기
+      console.log(`${imageLoadPromises.length}개 이미지 변환 대기 중...`);
+      await Promise.all(imageLoadPromises);
+      console.log('모든 이미지 변환 완료');
       
       // 2. 숨긴 섹션들을 임시로 display:none 처리
       const previewElement = detailPageRef.current;
