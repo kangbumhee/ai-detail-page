@@ -539,7 +539,7 @@ const App: React.FC = () => {
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               AI 상세페이지 제작
             </h1>
-            <span className="ml-2 text-xs text-slate-400 font-normal">v1.0.0</span>
+            <span className="ml-2 text-xs text-slate-400 font-normal">v1.1.0</span>
           </div>
           
           <div className="flex items-center gap-4">

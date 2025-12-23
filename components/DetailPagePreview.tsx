@@ -679,6 +679,78 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     }
   };
 
+  const handleDownloadHTML = async () => {
+    const element = detailPageRef.current;
+    if (!element) return;
+
+    // 로딩 표시
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'html-loading';
+    loadingDiv.innerHTML = `
+      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; color: white; font-size: 18px;">
+        HTML 파일 생성 중...
+      </div>
+    `;
+    document.body.appendChild(loadingDiv);
+
+    try {
+      // 숨겨진 섹션 처리
+      const sectionsToHide: HTMLElement[] = [];
+      hiddenSections.forEach(sectionId => {
+        const sectionElement = element.querySelector(`[data-section="${sectionId}"]`) as HTMLElement;
+        if (sectionElement) {
+          sectionsToHide.push(sectionElement);
+          sectionElement.style.display = 'none';
+        }
+      });
+
+      // HTML 콘텐츠 가져오기
+      const htmlContent = element.innerHTML;
+
+      // 숨겨진 섹션 복원
+      sectionsToHide.forEach(section => {
+        section.style.display = '';
+      });
+
+      // 완전한 HTML 문서 생성
+      const fullHTML = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상세페이지</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; padding: 0; background: #f5f5f5; }
+    .preview-container { max-width: 500px; margin: 0 auto; background: white; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="preview-container">
+    ${htmlContent}
+  </div>
+</body>
+</html>`;
+
+      // Blob 생성 및 다운로드
+      const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `detail-page-${Date.now()}.html`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('HTML 저장 실패:', error);
+      alert('HTML 저장에 실패했습니다.');
+    } finally {
+      const loading = document.getElementById('html-loading');
+      if (loading) loading.remove();
+    }
+  };
+
   const handleSectionUpdate = async (key: keyof GeneratedCopy, feedback: string) => {
     try {
       const refinedData = await refineCopySection(key, copy[key], feedback);
@@ -798,9 +870,14 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
              <Button onClick={handleDownloadZip} variant="secondary" className="w-full text-sm">
                 📂 개별 이미지 ZIP 다운로드
              </Button>
-             <Button onClick={handleDownloadFullPage} className="w-full text-sm bg-green-600 hover:bg-green-700 shadow-green-500/30">
-                🖼️ 상세페이지 전체 저장 (JPG)
-             </Button>
+             <div className="flex gap-2">
+               <Button onClick={handleDownloadFullPage} className="flex-1 text-sm bg-green-600 hover:bg-green-700">
+                 🖼️ JPG 저장
+               </Button>
+               <Button onClick={handleDownloadHTML} className="flex-1 text-sm bg-blue-600 hover:bg-blue-700">
+                 📄 HTML 저장
+               </Button>
+             </div>
              
              {/* Undo/Redo 버튼 */}
              {(onUndo || onRedo) && (
@@ -1027,9 +1104,9 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                        <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold mb-5 rounded-full">
                          POINT 0{idx + 1}
                        </span>
-                       <h3 className="text-2xl md:text-4xl font-bold text-slate-900 mb-4 break-keep">{feature.title}</h3>
-                       <p className="text-lg md:text-xl text-blue-600 font-medium mb-6">{feature.subtitle}</p>
-                       <p className="text-slate-600 text-lg md:text-xl leading-relaxed break-keep">{feature.description}</p>
+                       <h3 className="text-5xl md:text-4xl font-bold text-slate-900 mb-4 break-keep">{feature.title}</h3>
+                       <p className="text-2xl md:text-lg text-blue-600 font-medium mb-6">{feature.subtitle}</p>
+                       <p className="text-slate-600 text-2xl md:text-lg leading-relaxed break-keep">{feature.description}</p>
                     </div>
                     
                     <div className="w-full relative group">
@@ -1114,15 +1191,15 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                sectionName="활용 예시" 
                onUpdate={(fb) => handleSectionUpdate('usageScenarios', fb)} 
              />
-             <h3 className="text-2xl md:text-3xl font-bold text-center mb-12">이렇게 활용해보세요</h3>
+             <h3 className="text-5xl md:text-4xl font-bold text-center mb-12">이렇게 활용해보세요</h3>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {(copy.usageScenarios || []).map((usage, idx) => (
                   <div key={idx} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-blue-500 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold mb-4">
                       {idx + 1}
                     </div>
-                    <h4 className="text-xl font-bold mb-3">{usage.situation}</h4>
-                    <p className="text-slate-400 text-base md:text-sm leading-relaxed">{usage.benefit}</p>
+                    <h4 className="text-2xl md:text-xl font-bold mb-3">{usage.situation}</h4>
+                    <p className="text-slate-400 text-2xl md:text-lg leading-relaxed">{usage.benefit}</p>
                   </div>
                 ))}
              </div>
@@ -1156,7 +1233,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
             <div className="py-20 px-0 bg-white border-t border-slate-100">
               <div className="text-center mb-12">
                 <span className="text-blue-600 font-bold tracking-widest text-sm uppercase mb-2 block">DETAIL VIEW</span>
-                <h3 className="text-3xl font-bold text-slate-900">제품 디테일</h3>
+                <h3 className="text-5xl md:text-4xl font-bold text-slate-900">제품 디테일</h3>
               </div>
               <div className="flex flex-col gap-0 max-w-[860px] mx-auto">
                 {detailViewImages.map((img, idx) => (
@@ -1192,17 +1269,17 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                sectionName="FAQ 수정" 
                onUpdate={(fb) => handleSectionUpdate('faq', fb)} 
              />
-             <h3 className="text-3xl md:text-2xl font-bold text-center mb-12 text-slate-900">자주 묻는 질문 (FAQ)</h3>
+             <h3 className="text-4xl md:text-3xl font-bold text-center mb-12 text-slate-900">자주 묻는 질문 (FAQ)</h3>
              <div className="max-w-3xl mx-auto space-y-4 mb-20">
                {(copy.faq || []).map((item, idx) => (
                  <div key={idx} className="border border-slate-200 rounded-lg p-6 bg-white shadow-sm">
                    <div className="flex items-start gap-3 mb-3">
-                     <span className="text-blue-600 font-bold text-xl md:text-lg">Q.</span>
-                     <h4 className="font-bold text-slate-800 text-xl md:text-lg">{item.question}</h4>
+                    <span className="text-blue-600 font-bold text-2xl md:text-xl">Q.</span>
+                    <h4 className="font-bold text-slate-800 text-2xl md:text-xl">{item.question}</h4>
                    </div>
                    <div className="flex items-start gap-3 pl-1">
-                     <span className="text-slate-400 font-bold text-xl md:text-lg">A.</span>
-                     <p className="text-slate-600 text-base md:text-sm leading-relaxed">{item.answer}</p>
+                    <span className="text-slate-400 font-bold text-2xl md:text-xl">A.</span>
+                    <p className="text-slate-600 text-xl md:text-base leading-relaxed">{item.answer}</p>
                    </div>
                  </div>
                ))}
@@ -1213,14 +1290,14 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                   sectionName="제품 상세 스펙" 
                   onUpdate={(fb) => handleSectionUpdate('specs', fb)} 
                />
-               <h3 className="text-3xl md:text-2xl font-bold text-center mb-8 text-slate-900">제품 상세 스펙</h3>
+               <h3 className="text-4xl md:text-3xl font-bold text-center mb-8 text-slate-900">제품 상세 스펙</h3>
                <div className="max-w-xl mx-auto border-t-2 border-slate-900">
                  {(copy.specs || []).map((spec, idx) => (
                    <div key={idx} className="flex border-b border-slate-200 bg-white">
-                     <div className="w-1/3 bg-slate-100 p-4 font-bold text-slate-700 text-base md:text-sm flex items-center justify-center">
+                     <div className="w-1/3 bg-slate-100 p-4 font-bold text-slate-700 text-xl md:text-base flex items-center justify-center">
                        {spec.label}
                      </div>
-                     <div className="w-2/3 p-4 text-slate-700 text-base md:text-sm font-medium">
+                     <div className="w-2/3 p-4 text-slate-700 text-xl md:text-base font-medium">
                        {spec.value}
                      </div>
                    </div>
