@@ -698,71 +698,109 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         }
       });
 
-      // 이미지 URL 수집
-      const images = element.querySelectorAll('img');
-      const imageUrls: string[] = [];
-      images.forEach(img => {
-        if (img.src && !img.src.includes('data:')) {
-          imageUrls.push(img.src);
-        }
+      // 복제본 생성
+      const clonedElement = element.cloneNode(true) as HTMLElement;
+
+      // 에디터 요소 제거
+      const removeSelectors = ['button', 'input', 'label', 'svg'];
+      removeSelectors.forEach(selector => {
+        clonedElement.querySelectorAll(selector).forEach(el => el.remove());
       });
 
-      // 텍스트 콘텐츠 수집
-      const getTextContent = (selector: string): string[] => {
-        const elements = element.querySelectorAll(selector);
-        const texts: string[] = [];
-        elements.forEach(el => {
-          const text = el.textContent?.trim();
-          if (text && text.length > 0) texts.push(text);
-        });
-        return texts;
-      };
-
-      const h1Texts = getTextContent('h1');
-      const h2Texts = getTextContent('h2');
-      const h3Texts = getTextContent('h3');
-      const h4Texts = getTextContent('h4');
-      const pTexts = getTextContent('p');
-
-      // HTML 조립
+      // HTML 순서대로 조립
       let html = `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Malgun Gothic', sans-serif; background: #fff;">`;
 
-      // 제목
-      h1Texts.forEach(text => {
-        if (!text.includes('수정') && !text.includes('저장') && !text.includes('불러오기')) {
-          html += `<h1 style="font-size: 28px; font-weight: bold; text-align: center; margin: 30px 0 20px; color: #1a1a1a;">${text}</h1>`;
+      // DOM 순서대로 순회하며 HTML 생성
+      const processNode = (node: Node): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text && text.length > 2 && 
+              !text.includes('수정') && !text.includes('저장') && 
+              !text.includes('불러오기') && !text.includes('100%') &&
+              !text.includes('번역')) {
+            return text;
+          }
+          return '';
         }
-      });
 
-      // 메인 이미지
-      if (imageUrls[0]) {
-        html += `<div style="text-align: center; margin: 20px 0;"><img src="${imageUrls[0]}" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
-      }
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
 
-      // h2 제목들
-      h2Texts.forEach(text => {
-        if (!text.includes('수정') && !text.includes('저장')) {
-          html += `<h2 style="font-size: 24px; font-weight: bold; text-align: center; margin: 30px 0 15px; color: #333; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${text}</h2>`;
+        const el = node as HTMLElement;
+        const tagName = el.tagName.toLowerCase();
+
+        // 이미지
+        if (tagName === 'img') {
+          const src = el.getAttribute('src');
+          if (src && !src.includes('data:')) {
+            return `<div style="text-align: center; margin: 20px 0;"><img src="${src}" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
+          }
+          return '';
         }
-      });
 
-      // 나머지 이미지들
-      imageUrls.slice(1).forEach((url, idx) => {
-        // h3 제목 추가
-        if (h3Texts[idx] && !h3Texts[idx].includes('수정') && !h3Texts[idx].includes('저장')) {
-          html += `<h3 style="font-size: 20px; font-weight: bold; text-align: center; margin: 25px 0 10px; color: #444;">${h3Texts[idx]}</h3>`;
+        // 제목들
+        if (tagName === 'h1') {
+          const text = el.textContent?.trim();
+          if (text && !text.includes('수정') && !text.includes('저장')) {
+            return `<h1 style="font-size: 28px; font-weight: bold; text-align: center; margin: 30px 0 20px; color: #1a1a1a;">${text}</h1>`;
+          }
+          return '';
         }
-        // 이미지 추가
-        html += `<div style="text-align: center; margin: 15px 0;"><img src="${url}" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
-      });
 
-      // 본문 텍스트
-      pTexts.forEach(text => {
-        if (text.length > 10 && !text.includes('수정') && !text.includes('저장') && !text.includes('불러오기') && !text.includes('%')) {
-          html += `<p style="font-size: 16px; line-height: 1.8; text-align: center; margin: 12px 0; color: #555;">${text}</p>`;
+        if (tagName === 'h2') {
+          const text = el.textContent?.trim();
+          if (text && !text.includes('수정') && !text.includes('저장')) {
+            return `<h2 style="font-size: 24px; font-weight: bold; text-align: center; margin: 25px 0 15px; color: #333; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${text}</h2>`;
+          }
+          return '';
         }
-      });
 
+        if (tagName === 'h3') {
+          const text = el.textContent?.trim();
+          if (text && !text.includes('수정') && !text.includes('저장')) {
+            return `<h3 style="font-size: 20px; font-weight: bold; text-align: center; margin: 25px 0 10px; color: #444;">${text}</h3>`;
+          }
+          return '';
+        }
+
+        if (tagName === 'h4') {
+          const text = el.textContent?.trim();
+          if (text && !text.includes('수정') && !text.includes('저장')) {
+            return `<h4 style="font-size: 18px; font-weight: bold; text-align: center; margin: 20px 0 8px; color: #555;">${text}</h4>`;
+          }
+          return '';
+        }
+
+        // 문단
+        if (tagName === 'p') {
+          const text = el.textContent?.trim();
+          if (text && text.length > 5 && 
+              !text.includes('수정') && !text.includes('저장') && 
+              !text.includes('불러오기') && !text.includes('100%')) {
+            return `<p style="font-size: 16px; line-height: 1.8; text-align: center; margin: 12px 0; color: #555;">${text}</p>`;
+          }
+          return '';
+        }
+
+        // span (POINT, PROBLEM 등)
+        if (tagName === 'span') {
+          const text = el.textContent?.trim();
+          if (text && text.length > 2 && text.length < 50 &&
+              !text.includes('수정') && !text.includes('저장') &&
+              (text.includes('POINT') || text.includes('PROBLEM') || text.includes('Q.') || text.includes('A.'))) {
+            return `<p style="font-size: 14px; font-weight: bold; text-align: center; margin: 15px 0 5px; color: #667eea;">${text}</p>`;
+          }
+          return '';
+        }
+
+        // div 등 컨테이너는 자식 순회
+        let childHtml = '';
+        el.childNodes.forEach(child => {
+          childHtml += processNode(child);
+        });
+        return childHtml;
+      };
+
+      html += processNode(clonedElement);
       html += `</div>`;
 
       sectionsToHide.forEach(section => {
