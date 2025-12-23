@@ -337,7 +337,7 @@ const App: React.FC = () => {
       originalImages: state.productData.images.filter(url => !url.startsWith('data:'))  // 외부 URL만 저장
     };
     
-    setHistory(prev => [newItem, ...prev].slice(0, 10)); // 최대 10개로 줄임
+    setHistory(prev => [newItem, ...prev].slice(0, 200)); // 최대 200개 저장, 초과 시 오래된 항목 자동 삭제
     alert('히스토리에 저장되었습니다!');
   };
 

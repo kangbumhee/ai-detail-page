@@ -189,6 +189,58 @@ const uploadImageToImgbb = async (base64Image: string): Promise<string> => {
   return data.data.url;
 };
 
+// 외부 URL에서 이미지를 가져와서 imgbb에 업로드 (CORS 문제 해결용)
+async function uploadExternalImageToImgbb(imageUrl: string): Promise<string> {
+  // 이미 imgbb 도메인이면 그대로 반환
+  if (imageUrl.includes('i.ibb.co') || imageUrl.includes('ibb.co')) {
+    return imageUrl;
+  }
+
+  // imgbb API 키 가져오기
+  const getImgbbApiKey = (): string => {
+    const envKey = (import.meta as any).env?.VITE_IMGBB_API_KEY;
+    if (envKey) {
+      return envKey;
+    }
+    throw new Error("imgbb API 키가 설정되지 않았습니다. VITE_IMGBB_API_KEY 환경변수를 설정해주세요.");
+  };
+
+  const imgbbApiKey = getImgbbApiKey();
+  
+  if (!imgbbApiKey) {
+    console.warn('imgbb API 키가 없어서 원본 URL 반환');
+    return imageUrl;
+  }
+
+  try {
+    // imgbb API는 URL 파라미터로 직접 이미지를 가져올 수 있음
+    const formData = new FormData();
+    formData.append('key', imgbbApiKey);
+    formData.append('image', imageUrl); // URL을 직접 전달
+
+    const response = await fetch('https://api.imgbb.com/1/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`imgbb 업로드 실패: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.data?.url) {
+      console.log('imgbb 업로드 성공:', data.data.url);
+      return data.data.url;
+    } else {
+      throw new Error('imgbb 응답 오류');
+    }
+  } catch (error) {
+    console.error('imgbb 업로드 실패, 원본 URL 반환:', error);
+    return imageUrl;
+  }
+}
+
 // ========== Groq API 설정 (텍스트 생성용) ==========
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -745,7 +797,21 @@ ${scenePrompt}
     });
     
     const resultUrls = await waitForNanoBananaTask(taskId);
-    return resultUrls[0] || getFallbackImage();
+    const generatedImageUrl = resultUrls[0] || getFallbackImage();
+    
+    // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
+    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
+      console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+      try {
+        const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
+        return imgbbUrl;
+      } catch (error) {
+        console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+        return generatedImageUrl;
+      }
+    }
+    
+    return generatedImageUrl;
     
   } else {
     // Nano Banana Edit 사용 (참조 이미지 필수!)
@@ -772,7 +838,21 @@ ${scenePrompt}
       });
       
       const resultUrls = await waitForNanoBananaTask(taskId);
-      return resultUrls[0] || getFallbackImage();
+      const generatedImageUrl = resultUrls[0] || getFallbackImage();
+      
+      // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
+      if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
+        console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+        try {
+          const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
+          return imgbbUrl;
+        } catch (error) {
+          console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+          return generatedImageUrl;
+        }
+      }
+      
+      return generatedImageUrl;
     }
     
     // nano-banana-edit 사용 (참조 이미지 지원)
@@ -797,7 +877,21 @@ ${scenePrompt}
     });
     
     const resultUrls = await waitForNanoBananaTask(taskId);
-    return resultUrls[0] || getFallbackImage();
+    const generatedImageUrl = resultUrls[0] || getFallbackImage();
+    
+    // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
+    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
+      console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+      try {
+        const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
+        return imgbbUrl;
+      } catch (error) {
+        console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+        return generatedImageUrl;
+      }
+    }
+    
+    return generatedImageUrl;
   }
 };
 
@@ -1031,5 +1125,19 @@ ${editPrompt}
   });
   
   const resultUrls = await waitForNanoBananaTask(taskId);
-  return resultUrls[0] || getFallbackImage();
+  const generatedImageUrl = resultUrls[0] || getFallbackImage();
+  
+  // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
+  if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
+    console.log('수정된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+    try {
+      const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
+      return imgbbUrl;
+    } catch (error) {
+      console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+      return generatedImageUrl;
+    }
+  }
+  
+  return generatedImageUrl;
 };
