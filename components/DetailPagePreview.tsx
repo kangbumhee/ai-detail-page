@@ -542,12 +542,18 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
   const handleDownloadFullPage = async () => {
     if (!detailPageRef.current) return;
     
+    // 로딩 상태 표시
+    const loadingToast = document.createElement('div');
+    loadingToast.className = 'fixed top-5 right-5 bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl z-[200] flex items-center gap-3';
+    loadingToast.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>이미지 처리 중...</span>';
+    document.body.appendChild(loadingToast);
+    
     try {
-      // 1. 모든 이미지를 CORS 프록시를 통해 Base64로 변환
+      // 1. 모든 이미지를 Base64로 변환
       const images = detailPageRef.current.querySelectorAll('img');
       const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
       
-      // CORS 프록시 URL (무료 프록시 서비스)
+      // CORS 프록시 URL (tempfile 등 다른 도메인용)
       const corsProxy = 'https://api.allorigins.win/raw?url=';
       
       console.log(`총 ${images.length}개의 이미지 처리 시작`);
@@ -561,13 +567,20 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
             try {
               originalSrcs.push({ img, src: img.src });
               
-              console.log('프록시를 통해 이미지 가져오기:', img.src);
+              let response: Response;
+              const src = img.src;
               
-              // CORS 프록시를 통해 이미지 가져오기
-              const proxyUrl = corsProxy + encodeURIComponent(img.src);
-              console.log('프록시 URL:', proxyUrl);
+              // imgbb 이미지는 CORS를 지원하므로 프록시 없이 직접 fetch
+              if (src.includes('i.ibb.co') || src.includes('ibb.co')) {
+                console.log('imgbb 이미지 직접 가져오기:', src);
+                response = await fetch(src);
+              } else {
+                // 다른 도메인(tempfile 등)은 프록시 사용
+                console.log('프록시를 통해 이미지 가져오기:', src);
+                const proxyUrl = corsProxy + encodeURIComponent(src);
+                response = await fetch(proxyUrl);
+              }
               
-              const response = await fetch(proxyUrl);
               if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
               }
@@ -598,7 +611,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                 img.src = base64;
               });
             } catch (e) {
-              console.warn('이미지 변환 실패 (프록시):', img.src, e);
+              console.warn('이미지 변환 실패:', img.src, e);
               // 실패해도 계속 진행
             }
           })();
@@ -611,6 +624,9 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       console.log(`${imageLoadPromises.length}개 이미지 변환 대기 중...`);
       await Promise.all(imageLoadPromises);
       console.log('모든 이미지 변환 완료');
+      
+      // 로딩 메시지 업데이트
+      loadingToast.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>캔버스 생성 중...</span>';
       
       // 2. 숨긴 섹션들을 임시로 display:none 처리
       const previewElement = detailPageRef.current;
@@ -650,8 +666,15 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       link.href = canvas.toDataURL('image/jpeg', 0.95);
       link.click();
       
+      // 로딩 메시지 제거
+      document.body.removeChild(loadingToast);
+      
     } catch (error) {
       console.error('저장 실패:', error);
+      // 로딩 메시지 제거
+      if (document.body.contains(loadingToast)) {
+        document.body.removeChild(loadingToast);
+      }
       alert('저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
