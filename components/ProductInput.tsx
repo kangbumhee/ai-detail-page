@@ -37,6 +37,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -384,6 +385,14 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
                 accept="image/*" 
                 onChange={handleImageChange} 
               />
+              <input 
+                type="file" 
+                ref={cameraInputRef}
+                className="hidden" 
+                accept="image/*" 
+                capture="environment"
+                onChange={handleImageChange} 
+              />
               {data.images.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
                   {data.images.map((img, idx) => (
@@ -407,14 +416,35 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               ) : (
                 <>
                   <div className="text-4xl mb-3">🖼️</div>
-                  <p className="text-slate-600 font-medium text-base">
-                    {isDragging ? '여기에 놓으세요!' : '클릭 또는 드래그하여 이미지 업로드'}
-                  </p>
-                  {!isDragging && (
-                    <>
-                      <p className="text-slate-400 text-sm mt-1">또는 파일을 여기에 드래그</p>
-                      <p className="text-purple-500 text-sm mt-3">💡 깨끗한 흰색 배경 이미지가 가장 좋아요</p>
-                    </>
+                  {isDragging ? (
+                    <p className="text-slate-600 font-medium text-base">여기에 놓으세요!</p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cameraInputRef.current?.click();
+                          }}
+                          className="px-4 py-2 bg-blue-500 text-white rounded-lg flex items-center gap-2 hover:bg-blue-600 transition-all"
+                        >
+                          📷 사진 촬영
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-lg flex items-center gap-2 hover:bg-gray-600 transition-all"
+                        >
+                          📁 파일 선택
+                        </button>
+                      </div>
+                      <p className="text-sm text-slate-400">또는 이미지를 여기에 드래그하세요</p>
+                      <p className="text-purple-500 text-xs mt-1">💡 깨끗한 흰색 배경 이미지가 가장 좋아요</p>
+                    </div>
                   )}
                 </>
               )}
