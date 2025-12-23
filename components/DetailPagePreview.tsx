@@ -707,65 +707,120 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       // 복제본 생성
       const clonedElement = element.cloneNode(true) as HTMLElement;
 
-      // 에디터 버튼들 제거 (수정, 저장, 불러오기, +/- 버튼 등)
-      const elementsToRemove = clonedElement.querySelectorAll('button, input, label, svg, [class*="absolute"], [class*="hover:"]');
-      elementsToRemove.forEach(el => el.remove());
+      // 에디터 요소들 제거
+      const removeSelectors = [
+        'button',
+        'input', 
+        'label',
+        'svg',
+        '[class*="absolute"]',
+        '[class*="cursor-pointer"]',
+        '[class*="hover\\:"]'
+      ];
+      
+      removeSelectors.forEach(selector => {
+        try {
+          const elements = clonedElement.querySelectorAll(selector);
+          elements.forEach(el => el.remove());
+        } catch (e) {
+          // 선택자 오류 무시
+        }
+      });
 
-      // data-section 속성 제거
-      const dataElements = clonedElement.querySelectorAll('[data-section]');
-      dataElements.forEach(el => el.removeAttribute('data-section'));
-
-      // 이미지와 텍스트만 포함된 깔끔한 HTML 생성
-      const generateCleanHTML = (el: HTMLElement): string => {
-        let html = '';
+      // 모든 요소에 인라인 스타일 적용
+      const applyInlineStyles = (el: Element) => {
+        if (!(el instanceof HTMLElement)) return;
         
-        Array.from(el.children).forEach(child => {
-          const tagName = child.tagName.toLowerCase();
-          
-          // 이미지 처리
-          if (tagName === 'img') {
-            const img = child as HTMLImageElement;
-            html += `<div style="text-align: center; margin: 20px 0;">
-            <img src="${img.src}" alt="${img.alt || ''}" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
-          </div>\n`;
-          }
-          // 제목 처리
-          else if (['h1', 'h2', 'h3', 'h4'].includes(tagName)) {
-            const fontSize = tagName === 'h1' ? '28px' : tagName === 'h2' ? '24px' : tagName === 'h3' ? '20px' : '18px';
-            const text = child.textContent?.trim();
-            if (text) {
-              html += `<${tagName} style="font-size: ${fontSize}; font-weight: bold; text-align: center; margin: 20px 0; color: #333;">${text}</${tagName}>\n`;
-            }
-          }
-          // 문단 처리
-          else if (tagName === 'p') {
-            const text = child.textContent?.trim();
-            if (text) {
-              html += `<p style="font-size: 16px; line-height: 1.8; text-align: center; margin: 15px 0; color: #555;">${text}</p>\n`;
-            }
-          }
-          // span 처리
-          else if (tagName === 'span') {
-            const text = child.textContent?.trim();
-            if (text && text.length > 1) {
-              html += `<p style="font-size: 14px; text-align: center; margin: 10px 0; color: #666;">${text}</p>\n`;
-            }
-          }
-          // div 등 컨테이너는 재귀 처리
-          else if (tagName === 'div') {
-            html += generateCleanHTML(child as HTMLElement);
-          }
-        });
+        const computed = window.getComputedStyle(el);
         
-        return html;
+        // 주요 스타일 속성들
+        const styles: string[] = [];
+        
+        // 배경
+        const bgColor = computed.backgroundColor;
+        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+          styles.push(`background-color: ${bgColor}`);
+        }
+        const bgImage = computed.backgroundImage;
+        if (bgImage && bgImage !== 'none') {
+          styles.push(`background-image: ${bgImage}`);
+          styles.push(`background-size: ${computed.backgroundSize}`);
+          styles.push(`background-position: ${computed.backgroundPosition}`);
+        }
+        
+        // 색상
+        const color = computed.color;
+        if (color) styles.push(`color: ${color}`);
+        
+        // 폰트
+        styles.push(`font-size: ${computed.fontSize}`);
+        styles.push(`font-weight: ${computed.fontWeight}`);
+        styles.push(`font-family: ${computed.fontFamily}`);
+        styles.push(`line-height: ${computed.lineHeight}`);
+        styles.push(`text-align: ${computed.textAlign}`);
+        
+        // 여백
+        if (computed.padding !== '0px') styles.push(`padding: ${computed.padding}`);
+        if (computed.margin !== '0px') styles.push(`margin: ${computed.margin}`);
+        
+        // 테두리
+        if (computed.borderRadius !== '0px') styles.push(`border-radius: ${computed.borderRadius}`);
+        if (computed.border && computed.border !== 'none' && !computed.border.includes('0px')) {
+          styles.push(`border: ${computed.border}`);
+        }
+        
+        // 레이아웃
+        const display = computed.display;
+        if (display === 'flex') {
+          styles.push(`display: flex`);
+          styles.push(`flex-direction: ${computed.flexDirection}`);
+          styles.push(`justify-content: ${computed.justifyContent}`);
+          styles.push(`align-items: ${computed.alignItems}`);
+          if (computed.gap !== 'normal' && computed.gap !== '0px') {
+            styles.push(`gap: ${computed.gap}`);
+          }
+        }
+        
+        // 크기
+        if (computed.width !== 'auto' && !computed.width.includes('%')) {
+          styles.push(`width: ${computed.width}`);
+        }
+        if (computed.maxWidth !== 'none') styles.push(`max-width: ${computed.maxWidth}`);
+        
+        // 스타일 적용
+        if (styles.length > 0) {
+          el.setAttribute('style', styles.join('; '));
+        }
+        
+        // class 제거
+        el.removeAttribute('class');
+        el.removeAttribute('data-section');
+        
+        // 자식 요소 처리
+        Array.from(el.children).forEach(child => applyInlineStyles(child));
       };
 
-      const cleanHTML = generateCleanHTML(clonedElement);
+      applyInlineStyles(clonedElement);
 
-      // 최종 HTML 래핑
-      const finalHTML = `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Malgun Gothic', sans-serif;">
-${cleanHTML}
-</div>`;
+      // 이미지 스타일 보정
+      const images = clonedElement.querySelectorAll('img');
+      images.forEach(img => {
+        img.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 0 auto;');
+      });
+
+      // 최종 HTML
+      const finalHTML = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0;">
+<div style="max-width: 500px; margin: 0 auto; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;">
+${clonedElement.innerHTML}
+</div>
+</body>
+</html>`;
 
       // 숨겨진 섹션 복원
       sectionsToHide.forEach(section => {
@@ -774,7 +829,7 @@ ${cleanHTML}
 
       // 클립보드에 복사
       await navigator.clipboard.writeText(finalHTML);
-      alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 상품 등록 페이지의 HTML 모드에 붙여넣기 하세요.');
+      alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 HTML 모드에 붙여넣기 하세요.');
 
     } catch (error) {
       console.error('HTML 복사 실패:', error);
