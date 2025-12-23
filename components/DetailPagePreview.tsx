@@ -679,7 +679,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     }
   };
 
-  const handleDownloadHTML = async () => {
+  const handleCopyHTML = async () => {
     const element = detailPageRef.current;
     if (!element) return;
 
@@ -688,7 +688,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     loadingDiv.id = 'html-loading';
     loadingDiv.innerHTML = `
       <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; color: white; font-size: 18px;">
-        HTML 파일 생성 중...
+        HTML 변환 중...
       </div>
     `;
     document.body.appendChild(loadingDiv);
@@ -704,47 +704,63 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         }
       });
 
-      // HTML 콘텐츠 가져오기
-      const htmlContent = element.innerHTML;
+      // 모든 요소의 computed style을 inline으로 변환
+      const clonedElement = element.cloneNode(true) as HTMLElement;
+      
+      const convertToInlineStyles = (el: HTMLElement) => {
+        const computed = window.getComputedStyle(el);
+        const importantStyles = [
+          'color', 'background-color', 'background',
+          'font-size', 'font-weight', 'font-family',
+          'text-align', 'line-height', 'letter-spacing',
+          'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+          'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+          'border', 'border-radius',
+          'width', 'max-width', 'min-width',
+          'display', 'flex-direction', 'justify-content', 'align-items', 'gap',
+          'position', 'top', 'left', 'right', 'bottom'
+        ];
+        
+        let styleString = '';
+        importantStyles.forEach(prop => {
+          const value = computed.getPropertyValue(prop);
+          if (value && value !== 'none' && value !== 'normal' && value !== 'auto') {
+            styleString += `${prop}: ${value}; `;
+          }
+        });
+        
+        if (styleString) {
+          el.setAttribute('style', styleString);
+        }
+        
+        // class 속성 제거 (쿠팡에서 불필요)
+        el.removeAttribute('class');
+        
+        // 자식 요소들도 처리
+        Array.from(el.children).forEach(child => {
+          if (child instanceof HTMLElement) {
+            convertToInlineStyles(child);
+          }
+        });
+      };
+
+      convertToInlineStyles(clonedElement);
 
       // 숨겨진 섹션 복원
       sectionsToHide.forEach(section => {
         section.style.display = '';
       });
 
-      // 완전한 HTML 문서 생성
-      const fullHTML = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>상세페이지</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { margin: 0; padding: 0; background: #f5f5f5; }
-    .preview-container { max-width: 500px; margin: 0 auto; background: white; }
-    img { max-width: 100%; height: auto; }
-  </style>
-</head>
-<body>
-  <div class="preview-container">
-    ${htmlContent}
-  </div>
-</body>
-</html>`;
+      // HTML 가져오기
+      const htmlContent = clonedElement.innerHTML;
 
-      // Blob 생성 및 다운로드
-      const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `detail-page-${Date.now()}.html`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // 클립보드에 복사
+      await navigator.clipboard.writeText(htmlContent);
+      alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 상품 등록 페이지에 붙여넣기 하세요.');
 
     } catch (error) {
-      console.error('HTML 저장 실패:', error);
-      alert('HTML 저장에 실패했습니다.');
+      console.error('HTML 복사 실패:', error);
+      alert('HTML 복사에 실패했습니다.');
     } finally {
       const loading = document.getElementById('html-loading');
       if (loading) loading.remove();
@@ -874,8 +890,8 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                <Button onClick={handleDownloadFullPage} className="flex-1 text-sm bg-green-600 hover:bg-green-700">
                  🖼️ JPG 저장
                </Button>
-               <Button onClick={handleDownloadHTML} className="flex-1 text-sm bg-blue-600 hover:bg-blue-700">
-                 📄 HTML 저장
+               <Button onClick={handleCopyHTML} className="flex-1 text-sm bg-blue-600 hover:bg-blue-700">
+                 📋 HTML 복사
                </Button>
              </div>
              
