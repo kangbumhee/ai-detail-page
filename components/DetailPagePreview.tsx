@@ -357,7 +357,7 @@ const ImageFeedbackControl: React.FC<{
 
           <div className="border-t border-slate-100 my-2"></div>
 
-          <p className="text-[10px] text-slate-500 mb-2">🖌️ AI 이미지 편집 요청</p>
+          <p className="text-xs text-slate-500 mb-2">🖌️ AI 이미지 편집 요청</p>
           <textarea
             className="w-full text-sm p-2 border border-slate-700 bg-slate-800 text-white rounded mb-2 focus:ring-2 focus:ring-purple-500 outline-none resize-none placeholder-slate-400"
             rows={2}
@@ -827,11 +827,11 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
              <div className="space-y-2 flex-1">
                 {!hiddenSections.has('pricing') && (
                 <div data-section="pricing">
-                  <h1 className="text-2xl font-medium text-slate-900 leading-snug break-keep">{productData.name}</h1>
+                  <h1 className="text-3xl md:text-2xl font-medium text-slate-900 leading-snug break-keep">{productData.name}</h1>
                   <div className="flex items-end gap-2 mt-2">
-                     {discountRate > 0 && <span className="text-red-500 font-bold text-2xl">{discountRate}%</span>}
-                     <span className="text-slate-900 font-bold text-3xl">{price.toLocaleString()}원</span>
-                     {discountRate > 0 && <span className="text-slate-400 line-through text-sm mb-1">{originalPrice.toLocaleString()}원</span>}
+                     {discountRate > 0 && <span className="text-red-500 font-bold text-3xl md:text-2xl">{discountRate}%</span>}
+                     <span className="text-slate-900 font-bold text-4xl md:text-3xl">{price.toLocaleString()}원</span>
+                     {discountRate > 0 && <span className="text-slate-400 line-through text-base md:text-sm mb-1">{originalPrice.toLocaleString()}원</span>}
                   </div>
                 </div>
                 )}
@@ -840,10 +840,10 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
              <div className="text-right w-full md:w-auto" data-section="pricing">
                 <div className="flex items-center gap-1 justify-end text-yellow-400 mb-1">
                    {'★★★★★'.split('').map((s, i) => <span key={i}>{s}</span>)}
-                   <span className="text-slate-400 text-sm font-medium ml-1">(4,892)</span>
+                   <span className="text-slate-400 text-base md:text-sm font-medium ml-1">(4,892)</span>
                 </div>
-                <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded font-medium">무료배송</span>
-                <span className="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-xs rounded font-medium ml-1">오늘출발</span>
+                <span className="inline-block px-3 py-1.5 bg-slate-100 text-slate-600 text-sm md:text-xs rounded font-medium">무료배송</span>
+                <span className="inline-block px-3 py-1.5 bg-blue-50 text-blue-600 text-sm md:text-xs rounded font-medium ml-1">오늘출발</span>
              </div>
              )}
            </div>
@@ -918,7 +918,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
              />
 
              <p className="text-blue-400 font-bold tracking-[0.2em] text-sm uppercase">PREMIUM QUALITY</p>
-             <h2 className="text-3xl md:text-5xl font-bold leading-tight break-keep">
+             <h2 className="text-2xl md:text-5xl font-bold leading-tight break-keep">
                {copy.headline}
              </h2>
              <div className="w-16 h-1 bg-white mx-auto opacity-30 my-8"></div>
@@ -935,8 +935,8 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                       <div className="text-red-400 font-bold mb-2 text-sm flex items-center gap-2">
                         <span>⚠️ PROBLEM 0{idx+1}</span>
                       </div>
-                      <h4 className="text-lg font-bold text-white mb-2">{point.title}</h4>
-                      <p className="text-slate-400 text-sm leading-relaxed">{point.description}</p>
+                      <h4 className="text-xl md:text-lg font-bold text-white mb-2">{point.title}</h4>
+                      <p className="text-slate-400 text-base md:text-sm leading-relaxed">{point.description}</p>
                     </div>
                   ))}
                 </div>
@@ -969,7 +969,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                />
              </div>
              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-10 text-white text-center pointer-events-none">
-                <p className="text-2xl md:text-3xl font-light italic leading-relaxed">
+                <p className="text-xl md:text-3xl font-light italic leading-relaxed">
                   "{copy.emotionalBenefit}"
                 </p>
              </div>
@@ -981,8 +981,8 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                sectionName="솔루션" 
                onUpdate={(fb) => handleSectionUpdate('solution', fb)} 
             />
-            <h3 className="text-blue-600 font-bold text-xl mb-4">이제 고민하지 마세요</h3>
-            <p className="text-slate-800 text-lg md:text-2xl font-bold leading-relaxed max-w-3xl mx-auto break-keep">
+            <h3 className="text-blue-600 font-bold text-2xl md:text-xl mb-4">이제 고민하지 마세요</h3>
+            <p className="text-slate-800 text-xl md:text-2xl font-bold leading-relaxed max-w-3xl mx-auto break-keep">
               {copy.solution}
             </p>
           </div>
@@ -1004,9 +1004,9 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                        <span className="inline-block px-3 py-1 bg-black text-white text-xs font-bold mb-5 rounded-full">
                          POINT 0{idx + 1}
                        </span>
-                       <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 break-keep">{feature.title}</h3>
-                       <p className="text-xl text-blue-600 font-medium mb-6">{feature.subtitle}</p>
-                       <p className="text-slate-600 text-base md:text-lg leading-relaxed break-keep">{feature.description}</p>
+                       <h3 className="text-2xl md:text-4xl font-bold text-slate-900 mb-4 break-keep">{feature.title}</h3>
+                       <p className="text-lg md:text-xl text-blue-600 font-medium mb-6">{feature.subtitle}</p>
+                       <p className="text-slate-600 text-lg md:text-xl leading-relaxed break-keep">{feature.description}</p>
                     </div>
                     
                     <div className="w-full relative group">
@@ -1091,7 +1091,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                sectionName="활용 예시" 
                onUpdate={(fb) => handleSectionUpdate('usageScenarios', fb)} 
              />
-             <h3 className="text-3xl font-bold text-center mb-12">이렇게 활용해보세요</h3>
+             <h3 className="text-2xl md:text-3xl font-bold text-center mb-12">이렇게 활용해보세요</h3>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {(copy.usageScenarios || []).map((usage, idx) => (
                   <div key={idx} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-blue-500 transition-colors">
@@ -1099,7 +1099,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                       {idx + 1}
                     </div>
                     <h4 className="text-xl font-bold mb-3">{usage.situation}</h4>
-                    <p className="text-slate-400 text-sm leading-relaxed">{usage.benefit}</p>
+                    <p className="text-slate-400 text-base md:text-sm leading-relaxed">{usage.benefit}</p>
                   </div>
                 ))}
              </div>
@@ -1169,17 +1169,17 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                sectionName="FAQ 수정" 
                onUpdate={(fb) => handleSectionUpdate('faq', fb)} 
              />
-             <h3 className="text-2xl font-bold text-center mb-12 text-slate-900">자주 묻는 질문 (FAQ)</h3>
+             <h3 className="text-3xl md:text-2xl font-bold text-center mb-12 text-slate-900">자주 묻는 질문 (FAQ)</h3>
              <div className="max-w-3xl mx-auto space-y-4 mb-20">
                {(copy.faq || []).map((item, idx) => (
                  <div key={idx} className="border border-slate-200 rounded-lg p-6 bg-white shadow-sm">
                    <div className="flex items-start gap-3 mb-3">
-                     <span className="text-blue-600 font-bold text-lg">Q.</span>
-                     <h4 className="font-bold text-slate-800 text-lg">{item.question}</h4>
+                     <span className="text-blue-600 font-bold text-xl md:text-lg">Q.</span>
+                     <h4 className="font-bold text-slate-800 text-xl md:text-lg">{item.question}</h4>
                    </div>
                    <div className="flex items-start gap-3 pl-1">
-                     <span className="text-slate-400 font-bold text-lg">A.</span>
-                     <p className="text-slate-600 text-sm leading-relaxed">{item.answer}</p>
+                     <span className="text-slate-400 font-bold text-xl md:text-lg">A.</span>
+                     <p className="text-slate-600 text-base md:text-sm leading-relaxed">{item.answer}</p>
                    </div>
                  </div>
                ))}
@@ -1190,14 +1190,14 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                   sectionName="제품 상세 스펙" 
                   onUpdate={(fb) => handleSectionUpdate('specs', fb)} 
                />
-               <h3 className="text-2xl font-bold text-center mb-8 text-slate-900">제품 상세 스펙</h3>
+               <h3 className="text-3xl md:text-2xl font-bold text-center mb-8 text-slate-900">제품 상세 스펙</h3>
                <div className="max-w-xl mx-auto border-t-2 border-slate-900">
                  {(copy.specs || []).map((spec, idx) => (
                    <div key={idx} className="flex border-b border-slate-200 bg-white">
-                     <div className="w-1/3 bg-slate-100 p-4 font-bold text-slate-700 text-sm flex items-center justify-center">
+                     <div className="w-1/3 bg-slate-100 p-4 font-bold text-slate-700 text-base md:text-sm flex items-center justify-center">
                        {spec.label}
                      </div>
-                     <div className="w-2/3 p-4 text-slate-700 text-sm font-medium">
+                     <div className="w-2/3 p-4 text-slate-700 text-base md:text-sm font-medium">
                        {spec.value}
                      </div>
                    </div>
@@ -1210,11 +1210,11 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
           {!hiddenSections.has('footer') && (
           <div className="bg-blue-50 py-16 px-6 text-center border-t border-blue-100" data-section="footer">
              <p className="text-blue-600 font-bold mb-4">지금 구매 시 혜택이 종료될 수 있습니다</p>
-             <h3 className="text-2xl font-bold text-slate-900 mb-8">고민은 배송만 늦출 뿐!</h3>
-             <button className="w-full max-w-md bg-slate-900 text-white py-5 font-bold text-xl rounded-full hover:bg-black transition-colors shadow-xl">
+             <h3 className="text-3xl md:text-2xl font-bold text-slate-900 mb-8">고민은 배송만 늦출 뿐!</h3>
+             <button className="w-full max-w-md bg-slate-900 text-white py-5 font-bold text-2xl md:text-xl rounded-full hover:bg-black transition-colors shadow-xl">
                최저가로 구매하기
              </button>
-             <p className="mt-6 text-xs text-slate-400">
+             <p className="mt-6 text-sm md:text-xs text-slate-400">
                본 상세페이지는 AI 상세페이지 제작 도구를 통해 생성된 가상 디자인 시안입니다.
              </p>
           </div>
