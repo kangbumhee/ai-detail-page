@@ -198,7 +198,7 @@ const ImageFeedbackControl: React.FC<{
               e.stopPropagation();
               try {
                 // CORS 프록시를 통해 이미지 가져오기
-                const corsProxy = 'https://corsproxy.io/?';
+                const corsProxy = 'https://api.allorigins.win/raw?url=';
                 const imageUrl = currentImage.url;
                 
                 let blob;
@@ -548,7 +548,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
       const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
       
       // CORS 프록시 URL (무료 프록시 서비스)
-      const corsProxy = 'https://corsproxy.io/?';
+      const corsProxy = 'https://api.allorigins.win/raw?url=';
       
       console.log(`총 ${images.length}개의 이미지 처리 시작`);
       
