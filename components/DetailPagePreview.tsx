@@ -683,18 +683,12 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     const element = detailPageRef.current;
     if (!element) return;
 
-    // 로딩 표시
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'html-loading';
-    loadingDiv.innerHTML = `
-      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; color: white; font-size: 18px;">
-        HTML 생성 중...
-      </div>
-    `;
+    loadingDiv.innerHTML = `<div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; color: white; font-size: 18px;">HTML 생성 중...</div>`;
     document.body.appendChild(loadingDiv);
 
     try {
-      // 숨겨진 섹션 처리
       const sectionsToHide: HTMLElement[] = [];
       hiddenSections.forEach(sectionId => {
         const sectionElement = element.querySelector(`[data-section="${sectionId}"]`) as HTMLElement;
@@ -704,131 +698,78 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         }
       });
 
-      // 복제본 생성
-      const clonedElement = element.cloneNode(true) as HTMLElement;
-
-      // 에디터 요소들 제거
-      const removeSelectors = [
-        'button',
-        'input', 
-        'label',
-        'svg',
-        '[class*="absolute"]',
-        '[class*="cursor-pointer"]',
-        '[class*="hover\\:"]'
-      ];
-      
-      removeSelectors.forEach(selector => {
-        try {
-          const elements = clonedElement.querySelectorAll(selector);
-          elements.forEach(el => el.remove());
-        } catch (e) {
-          // 선택자 오류 무시
+      // 이미지 URL 수집
+      const images = element.querySelectorAll('img');
+      const imageUrls: string[] = [];
+      images.forEach(img => {
+        if (img.src && !img.src.includes('data:')) {
+          imageUrls.push(img.src);
         }
       });
 
-      // 모든 요소에 인라인 스타일 적용
-      const applyInlineStyles = (el: Element) => {
-        if (!(el instanceof HTMLElement)) return;
-        
-        const computed = window.getComputedStyle(el);
-        
-        // 주요 스타일 속성들
-        const styles: string[] = [];
-        
-        // 배경
-        const bgColor = computed.backgroundColor;
-        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-          styles.push(`background-color: ${bgColor}`);
-        }
-        const bgImage = computed.backgroundImage;
-        if (bgImage && bgImage !== 'none') {
-          styles.push(`background-image: ${bgImage}`);
-          styles.push(`background-size: ${computed.backgroundSize}`);
-          styles.push(`background-position: ${computed.backgroundPosition}`);
-        }
-        
-        // 색상
-        const color = computed.color;
-        if (color) styles.push(`color: ${color}`);
-        
-        // 폰트
-        styles.push(`font-size: ${computed.fontSize}`);
-        styles.push(`font-weight: ${computed.fontWeight}`);
-        styles.push(`font-family: ${computed.fontFamily}`);
-        styles.push(`line-height: ${computed.lineHeight}`);
-        styles.push(`text-align: ${computed.textAlign}`);
-        
-        // 여백
-        if (computed.padding !== '0px') styles.push(`padding: ${computed.padding}`);
-        if (computed.margin !== '0px') styles.push(`margin: ${computed.margin}`);
-        
-        // 테두리
-        if (computed.borderRadius !== '0px') styles.push(`border-radius: ${computed.borderRadius}`);
-        if (computed.border && computed.border !== 'none' && !computed.border.includes('0px')) {
-          styles.push(`border: ${computed.border}`);
-        }
-        
-        // 레이아웃
-        const display = computed.display;
-        if (display === 'flex') {
-          styles.push(`display: flex`);
-          styles.push(`flex-direction: ${computed.flexDirection}`);
-          styles.push(`justify-content: ${computed.justifyContent}`);
-          styles.push(`align-items: ${computed.alignItems}`);
-          if (computed.gap !== 'normal' && computed.gap !== '0px') {
-            styles.push(`gap: ${computed.gap}`);
-          }
-        }
-        
-        // 크기
-        if (computed.width !== 'auto' && !computed.width.includes('%')) {
-          styles.push(`width: ${computed.width}`);
-        }
-        if (computed.maxWidth !== 'none') styles.push(`max-width: ${computed.maxWidth}`);
-        
-        // 스타일 적용
-        if (styles.length > 0) {
-          el.setAttribute('style', styles.join('; '));
-        }
-        
-        // class 제거
-        el.removeAttribute('class');
-        el.removeAttribute('data-section');
-        
-        // 자식 요소 처리
-        Array.from(el.children).forEach(child => applyInlineStyles(child));
+      // 텍스트 콘텐츠 수집
+      const getTextContent = (selector: string): string[] => {
+        const elements = element.querySelectorAll(selector);
+        const texts: string[] = [];
+        elements.forEach(el => {
+          const text = el.textContent?.trim();
+          if (text && text.length > 0) texts.push(text);
+        });
+        return texts;
       };
 
-      applyInlineStyles(clonedElement);
+      const h1Texts = getTextContent('h1');
+      const h2Texts = getTextContent('h2');
+      const h3Texts = getTextContent('h3');
+      const h4Texts = getTextContent('h4');
+      const pTexts = getTextContent('p');
 
-      // 이미지 스타일 보정
-      const images = clonedElement.querySelectorAll('img');
-      images.forEach(img => {
-        img.setAttribute('style', 'max-width: 100%; height: auto; display: block; margin: 0 auto;');
+      // HTML 조립
+      let html = `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Malgun Gothic', sans-serif; background: #fff;">`;
+
+      // 제목
+      h1Texts.forEach(text => {
+        if (!text.includes('수정') && !text.includes('저장') && !text.includes('불러오기')) {
+          html += `<h1 style="font-size: 28px; font-weight: bold; text-align: center; margin: 30px 0 20px; color: #1a1a1a;">${text}</h1>`;
+        }
       });
 
-      // 최종 HTML
-      const finalHTML = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0;">
-<div style="max-width: 500px; margin: 0 auto; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;">
-${clonedElement.innerHTML}
-</div>
-</body>
-</html>`;
+      // 메인 이미지
+      if (imageUrls[0]) {
+        html += `<div style="text-align: center; margin: 20px 0;"><img src="${imageUrls[0]}" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
+      }
 
-      // 숨겨진 섹션 복원
+      // h2 제목들
+      h2Texts.forEach(text => {
+        if (!text.includes('수정') && !text.includes('저장')) {
+          html += `<h2 style="font-size: 24px; font-weight: bold; text-align: center; margin: 30px 0 15px; color: #333; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${text}</h2>`;
+        }
+      });
+
+      // 나머지 이미지들
+      imageUrls.slice(1).forEach((url, idx) => {
+        // h3 제목 추가
+        if (h3Texts[idx] && !h3Texts[idx].includes('수정') && !h3Texts[idx].includes('저장')) {
+          html += `<h3 style="font-size: 20px; font-weight: bold; text-align: center; margin: 25px 0 10px; color: #444;">${h3Texts[idx]}</h3>`;
+        }
+        // 이미지 추가
+        html += `<div style="text-align: center; margin: 15px 0;"><img src="${url}" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
+      });
+
+      // 본문 텍스트
+      pTexts.forEach(text => {
+        if (text.length > 10 && !text.includes('수정') && !text.includes('저장') && !text.includes('불러오기') && !text.includes('%')) {
+          html += `<p style="font-size: 16px; line-height: 1.8; text-align: center; margin: 12px 0; color: #555;">${text}</p>`;
+        }
+      });
+
+      html += `</div>`;
+
       sectionsToHide.forEach(section => {
         section.style.display = '';
       });
 
-      // 클립보드에 복사
-      await navigator.clipboard.writeText(finalHTML);
+      await navigator.clipboard.writeText(html);
       alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 HTML 모드에 붙여넣기 하세요.');
 
     } catch (error) {
