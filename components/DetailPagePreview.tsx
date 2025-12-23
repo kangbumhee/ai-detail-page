@@ -688,7 +688,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
     loadingDiv.id = 'html-loading';
     loadingDiv.innerHTML = `
       <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; color: white; font-size: 18px;">
-        HTML 변환 중...
+        HTML 생성 중...
       </div>
     `;
     document.body.appendChild(loadingDiv);
@@ -704,59 +704,77 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
         }
       });
 
-      // 모든 요소의 computed style을 inline으로 변환
+      // 복제본 생성
       const clonedElement = element.cloneNode(true) as HTMLElement;
-      
-      const convertToInlineStyles = (el: HTMLElement) => {
-        const computed = window.getComputedStyle(el);
-        const importantStyles = [
-          'color', 'background-color', 'background',
-          'font-size', 'font-weight', 'font-family',
-          'text-align', 'line-height', 'letter-spacing',
-          'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-          'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
-          'border', 'border-radius',
-          'width', 'max-width', 'min-width',
-          'display', 'flex-direction', 'justify-content', 'align-items', 'gap',
-          'position', 'top', 'left', 'right', 'bottom'
-        ];
+
+      // 에디터 버튼들 제거 (수정, 저장, 불러오기, +/- 버튼 등)
+      const elementsToRemove = clonedElement.querySelectorAll('button, input, label, svg, [class*="absolute"], [class*="hover:"]');
+      elementsToRemove.forEach(el => el.remove());
+
+      // data-section 속성 제거
+      const dataElements = clonedElement.querySelectorAll('[data-section]');
+      dataElements.forEach(el => el.removeAttribute('data-section'));
+
+      // 이미지와 텍스트만 포함된 깔끔한 HTML 생성
+      const generateCleanHTML = (el: HTMLElement): string => {
+        let html = '';
         
-        let styleString = '';
-        importantStyles.forEach(prop => {
-          const value = computed.getPropertyValue(prop);
-          if (value && value !== 'none' && value !== 'normal' && value !== 'auto') {
-            styleString += `${prop}: ${value}; `;
-          }
-        });
-        
-        if (styleString) {
-          el.setAttribute('style', styleString);
-        }
-        
-        // class 속성 제거 (쿠팡에서 불필요)
-        el.removeAttribute('class');
-        
-        // 자식 요소들도 처리
         Array.from(el.children).forEach(child => {
-          if (child instanceof HTMLElement) {
-            convertToInlineStyles(child);
+          const tagName = child.tagName.toLowerCase();
+          
+          // 이미지 처리
+          if (tagName === 'img') {
+            const img = child as HTMLImageElement;
+            html += `<div style="text-align: center; margin: 20px 0;">
+            <img src="${img.src}" alt="${img.alt || ''}" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
+          </div>\n`;
+          }
+          // 제목 처리
+          else if (['h1', 'h2', 'h3', 'h4'].includes(tagName)) {
+            const fontSize = tagName === 'h1' ? '28px' : tagName === 'h2' ? '24px' : tagName === 'h3' ? '20px' : '18px';
+            const text = child.textContent?.trim();
+            if (text) {
+              html += `<${tagName} style="font-size: ${fontSize}; font-weight: bold; text-align: center; margin: 20px 0; color: #333;">${text}</${tagName}>\n`;
+            }
+          }
+          // 문단 처리
+          else if (tagName === 'p') {
+            const text = child.textContent?.trim();
+            if (text) {
+              html += `<p style="font-size: 16px; line-height: 1.8; text-align: center; margin: 15px 0; color: #555;">${text}</p>\n`;
+            }
+          }
+          // span 처리
+          else if (tagName === 'span') {
+            const text = child.textContent?.trim();
+            if (text && text.length > 1) {
+              html += `<p style="font-size: 14px; text-align: center; margin: 10px 0; color: #666;">${text}</p>\n`;
+            }
+          }
+          // div 등 컨테이너는 재귀 처리
+          else if (tagName === 'div') {
+            html += generateCleanHTML(child as HTMLElement);
           }
         });
+        
+        return html;
       };
 
-      convertToInlineStyles(clonedElement);
+      const cleanHTML = generateCleanHTML(clonedElement);
+
+      // 최종 HTML 래핑
+      const finalHTML = `<div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Malgun Gothic', sans-serif;">
+${cleanHTML}
+</div>`;
 
       // 숨겨진 섹션 복원
       sectionsToHide.forEach(section => {
         section.style.display = '';
       });
 
-      // HTML 가져오기
-      const htmlContent = clonedElement.innerHTML;
-
       // 클립보드에 복사
-      await navigator.clipboard.writeText(htmlContent);
-      alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 상품 등록 페이지에 붙여넣기 하세요.');
+      await navigator.clipboard.writeText(finalHTML);
+      alert('HTML이 클립보드에 복사되었습니다!\n쿠팡 상품 등록 페이지의 HTML 모드에 붙여넣기 하세요.');
 
     } catch (error) {
       console.error('HTML 복사 실패:', error);
