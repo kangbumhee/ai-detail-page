@@ -4,6 +4,7 @@ import { Button } from './Button';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  autoCloseOnSave?: boolean;
 }
 
 const API_KEY_STORAGE_KEY = 'nanoBananaApiKey';
@@ -12,7 +13,7 @@ export const getStoredApiKey = (): string | null => {
   return localStorage.getItem(API_KEY_STORAGE_KEY);
 };
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, autoCloseOnSave = false }) => {
   const [apiKey, setApiKey] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -31,7 +32,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     if (apiKey.trim()) {
       localStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim());
       setIsSaved(true);
-      // isSaved 상태가 화면에 표시되므로 alert 불필요
+      // autoCloseOnSave가 true면 저장 후 모달 닫기
+      if (autoCloseOnSave) {
+        setTimeout(() => {
+          onClose();
+        }, 300); // 저장 완료 메시지 표시 후 닫기
+      }
     }
   };
 

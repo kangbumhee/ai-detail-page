@@ -540,142 +540,36 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
   };
 
   const handleDownloadFullPage = async () => {
-    if (!detailPageRef.current) return;
-    
-    // 로딩 상태 표시
-    const loadingToast = document.createElement('div');
-    loadingToast.className = 'fixed top-5 right-5 bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl z-[200] flex items-center gap-3';
-    loadingToast.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>이미지 처리 중...</span>';
-    document.body.appendChild(loadingToast);
+    if (!detailPageRef.current) {
+      alert('다운로드할 콘텐츠가 없습니다.');
+      return;
+    }
     
     try {
-      // 1. 모든 이미지를 Base64로 변환
-      const images = detailPageRef.current.querySelectorAll('img');
-      const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
+      // 저장 중 표시를 위해 스크롤을 맨 위로
+      detailPageRef.current.scrollTop = 0;
       
-      // CORS 프록시 URL (tempfile 등 다른 도메인용)
-      const corsProxy = 'https://api.allorigins.win/raw?url=';
-      
-      console.log(`총 ${images.length}개의 이미지 처리 시작`);
-      
-      // 이미지들을 Base64로 변환 (각 이미지 로드 완료까지 대기)
-      const imageLoadPromises: Promise<void>[] = [];
-      
-      for (const img of Array.from(images)) {
-        if (img.src && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
-          const loadPromise = (async () => {
-            try {
-              originalSrcs.push({ img, src: img.src });
-              
-              let response: Response;
-              const src = img.src;
-              
-              // imgbb 이미지는 CORS를 지원하므로 프록시 없이 직접 fetch
-              if (src.includes('i.ibb.co') || src.includes('ibb.co')) {
-                console.log('imgbb 이미지 직접 가져오기:', src);
-                response = await fetch(src);
-              } else {
-                // 다른 도메인(tempfile 등)은 프록시 사용
-                console.log('프록시를 통해 이미지 가져오기:', src);
-                const proxyUrl = corsProxy + encodeURIComponent(src);
-                response = await fetch(proxyUrl);
-              }
-              
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-              }
-              
-              const blob = await response.blob();
-              console.log('Blob 가져오기 성공, 크기:', blob.size);
-              
-              const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  console.log('Base64 변환 완료');
-                  resolve(reader.result as string);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-              
-              // 이미지 src 교체 및 로드 완료 대기
-              await new Promise<void>((resolve, reject) => {
-                img.onload = () => {
-                  console.log('이미지 로드 완료 (Base64)');
-                  resolve();
-                };
-                img.onerror = () => {
-                  console.error('이미지 로드 실패 (Base64)');
-                  reject(new Error('이미지 로드 실패'));
-                };
-                img.src = base64;
-              });
-            } catch (e) {
-              console.warn('이미지 변환 실패:', img.src, e);
-              // 실패해도 계속 진행
-            }
-          })();
-          
-          imageLoadPromises.push(loadPromise);
-        }
-      }
-      
-      // 모든 이미지 변환 및 로드 완료까지 대기
-      console.log(`${imageLoadPromises.length}개 이미지 변환 대기 중...`);
-      await Promise.all(imageLoadPromises);
-      console.log('모든 이미지 변환 완료');
-      
-      // 로딩 메시지 업데이트
-      loadingToast.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>캔버스 생성 중...</span>';
-      
-      // 2. 숨긴 섹션들을 임시로 display:none 처리
-      const previewElement = detailPageRef.current;
-      const hiddenElements: HTMLElement[] = [];
-      
-      hiddenSections.forEach(sectionId => {
-        const el = previewElement.querySelector(`[data-section="${sectionId}"]`) as HTMLElement;
-        if (el) {
-          hiddenElements.push(el);
-          el.style.display = 'none';
-        }
-      });
-      
-      // 3. html2canvas 실행
-      const canvas = await html2canvas(previewElement, {
-        scale: 2,
+      const canvas = await html2canvas(detailPageRef.current, {
         useCORS: true,
         allowTaint: true,
+        scale: 2,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 30000,
+        // 전체 높이를 캡처하도록 설정
+        windowHeight: detailPageRef.current.scrollHeight,
+        height: detailPageRef.current.scrollHeight,
       });
       
-      // 4. 숨긴 섹션 다시 표시
-      hiddenElements.forEach(el => {
-        el.style.display = '';
-      });
-      
-      // 5. 원본 이미지 src 복원
-      originalSrcs.forEach(({ img, src }) => {
-        img.src = src;
-      });
-      
-      // 6. 다운로드
-      const link = document.createElement('a');
-      link.download = `detail-page-${Date.now()}.jpg`;
-      link.href = canvas.toDataURL('image/jpeg', 0.95);
-      link.click();
-      
-      // 로딩 메시지 제거
-      document.body.removeChild(loadingToast);
-      
-    } catch (error) {
-      console.error('저장 실패:', error);
-      // 로딩 메시지 제거
-      if (document.body.contains(loadingToast)) {
-        document.body.removeChild(loadingToast);
-      }
-      alert('저장에 실패했습니다. 다시 시도해주세요.');
+      const url = canvas.toDataURL("image/jpeg", 0.92);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${productData?.name || '상세페이지'}_${new Date().toISOString().slice(0, 10)}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Screenshot failed", err);
+      alert("상세페이지 저장 중 오류가 발생했습니다. 다시 시도해주세요.");
     }
   };
 
@@ -947,40 +841,40 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
                </Button>
              </div>
              
-             {/* Undo/Redo 버튼 */}
-             {(onUndo || onRedo) && (
-               <div className="flex gap-2 mt-3">
-                 <button
-                   onClick={onUndo}
-                   disabled={!canUndo}
-                   className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
-                     !canUndo
-                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                       : 'bg-slate-600 text-white hover:bg-slate-700'
-                   }`}
-                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                     <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                   </svg>
-                   되돌리기
-                 </button>
-                 
-                 <button
-                   onClick={onRedo}
-                   disabled={!canRedo}
-                   className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
-                     !canRedo
-                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                       : 'bg-slate-600 text-white hover:bg-slate-700'
-                   }`}
-                 >
-                   앞으로
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                     <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                   </svg>
-                 </button>
-               </div>
-             )}
+            {/* Undo/Redo 버튼 - 데스크톱에서만 표시 */}
+            {(onUndo || onRedo) && (
+              <div className="hidden sm:flex gap-2 mt-3">
+                <button
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
+                    !canUndo
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-slate-600 text-white hover:bg-slate-700'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                  </svg>
+                  되돌리기
+                </button>
+                
+                <button
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
+                    !canRedo
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-slate-600 text-white hover:bg-slate-700'
+                  }`}
+                >
+                  앞으로
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

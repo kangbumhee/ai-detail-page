@@ -10,10 +10,16 @@ const App: React.FC = () => {
   const [isKeyReady, setIsKeyReady] = useState<boolean>(false);
   const [isCheckingKey, setIsCheckingKey] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [pendingGenerate, setPendingGenerate] = useState<boolean>(false);
+  const [pendingProductData, setPendingProductData] = useState<ProductData | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [isViewingSharedPage, setIsViewingSharedPage] = useState(false);
+  const [sharedPageData, setSharedPageData] = useState<any>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [isMobilePreview, setIsMobilePreview] = useState(false);
 
   // Undo/Redo를 위한 상태 히스토리
   const [stateHistory, setStateHistory] = useState<AppState[]>([]);
@@ -136,9 +142,28 @@ const App: React.FC = () => {
     }
   }, [history]);
 
-  // 공유 링크에서 데이터 로드 (앱 시작 시)
+  // 뷰 페이지 확인
   useEffect(() => {
-    loadFromShareLink();
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewData = urlParams.get('view');
+    
+    if (viewData) {
+      try {
+        // Base64 디코딩
+        const decoded = decodeURIComponent(escape(atob(viewData)));
+        const parsedData = JSON.parse(decoded);
+        
+        console.log('공유 페이지 데이터:', parsedData);
+        
+        setSharedPageData(parsedData);
+        setIsViewingSharedPage(true);
+        
+        // URL에서 파라미터 제거
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (error) {
+        console.error('공유 데이터 파싱 실패:', error);
+      }
+    }
   }, []);
 
   // 자동저장: state가 변경될 때마다 히스토리에 저장 (preview 단계에서만)
@@ -172,10 +197,39 @@ const App: React.FC = () => {
     const storedKey = getStoredApiKey();
     if (storedKey) {
       setIsKeyReady(true);
+      
+      // API Key 저장 후 자동 생성 실행
+      if (pendingGenerate && pendingProductData) {
+        setPendingGenerate(false);
+        const dataToGenerate = pendingProductData;
+        setPendingProductData(null);
+        // 저장된 productData로 생성 실행
+        executeGenerate(dataToGenerate);
+      }
+    } else {
+      // API Key가 저장되지 않았으면 pending 상태 초기화
+      setPendingGenerate(false);
+      setPendingProductData(null);
     }
   };
 
   const handleInputSubmit = async (data: ProductData) => {
+    // API Key 체크
+    const apiKey = getStoredApiKey() || (import.meta as any).env?.VITE_NANO_BANANA_API_KEY;
+    
+    if (!apiKey) {
+      // API Key가 없으면 모달 표시하고 생성 대기
+      setPendingProductData(data);
+      setPendingGenerate(true);
+      setShowSettings(true);
+      return;
+    }
+    
+    // API Key가 있으면 생성 진행
+    await executeGenerate(data);
+  };
+
+  const executeGenerate = async (data: ProductData) => {
     setState(prev => ({ 
       ...prev, 
       step: 'processing', 
@@ -366,34 +420,126 @@ const App: React.FC = () => {
   // 공유 링크 생성
   const generateShareLink = async () => {
     try {
-      // 공유용 데이터 - 이미지 URL만 포함 (Base64 제외)
-      const shareData = {
-        productData: state.productData,
-        copy: state.generatedCopy,
-        // 외부 URL만 저장 (data: URL 제외)
-        images: state.generatedImages
-          .filter(img => !img.url.startsWith('data:'))
-          .slice(0, 4) // 최대 4개만
-          .map(img => img.url),
-        mainImageIndex: state.mainImageIndex,
-        originalImages: state.productData.images.filter(url => !url.startsWith('data:'))  // 참고 이미지 추가
-      };
+      setIsGeneratingLink(true);
       
-      const jsonString = JSON.stringify(shareData);
-      
-      // 데이터가 너무 크면 경고
-      if (jsonString.length > 5000) {
-        alert('공유 데이터가 너무 큽니다. 일부 이미지가 제외될 수 있습니다.');
+      if (state.generatedImages.length === 0) {
+        alert('공유할 이미지가 없습니다.');
+        return;
       }
       
-      const encoded = btoa(unescape(encodeURIComponent(jsonString)));
-      const shareUrl = `${window.location.origin}?share=${encoded}`;
+      // 1. 이미지들을 1장으로 합치기
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       
-      await navigator.clipboard.writeText(shareUrl);
-      alert('공유 링크가 클립보드에 복사되었습니다!');
+      if (!ctx) {
+        alert('캔버스를 생성할 수 없습니다.');
+        return;
+      }
+      
+      // 이미지 로드
+      const loadedImages: HTMLImageElement[] = [];
+      for (const img of state.generatedImages) {
+        try {
+          const imageElement = new Image();
+          imageElement.crossOrigin = 'anonymous';
+          await new Promise<void>((resolve, reject) => {
+            imageElement.onload = () => resolve();
+            imageElement.onerror = () => reject(new Error('이미지 로드 실패'));
+            imageElement.src = img.url;
+          });
+          loadedImages.push(imageElement);
+        } catch (e) {
+          console.error('이미지 로드 실패:', e);
+        }
+      }
+      
+      if (loadedImages.length === 0) {
+        alert('이미지를 로드할 수 없습니다.');
+        return;
+      }
+      
+      // 캔버스 크기 설정 (모든 이미지 세로로 합치기)
+      const maxWidth = Math.max(...loadedImages.map(img => img.width));
+      const totalHeight = loadedImages.reduce((sum, img) => sum + (img.height * maxWidth / img.width), 0);
+      
+      canvas.width = maxWidth;
+      canvas.height = totalHeight;
+      
+      // 배경색 설정
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 이미지 그리기
+      let currentY = 0;
+      for (const img of loadedImages) {
+        const scaledHeight = img.height * maxWidth / img.width;
+        ctx.drawImage(img, 0, currentY, maxWidth, scaledHeight);
+        currentY += scaledHeight;
+      }
+      
+      // 2. 합쳐진 이미지를 base64로 변환 후 imgbb 업로드
+      const mergedImageBase64 = canvas.toDataURL('image/jpeg', 0.9);
+      const base64Data = mergedImageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+      
+      const apiKey = (import.meta as any).env?.VITE_IMGBB_API_KEY;
+      if (!apiKey) {
+        throw new Error('imgbb API 키가 설정되지 않았습니다.');
+      }
+      
+      const formData = new FormData();
+      formData.append('image', base64Data);
+      
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const imgbbData = await response.json();
+      
+      if (!imgbbData.success || !imgbbData.data?.url) {
+        throw new Error('이미지 업로드 실패');
+      }
+      
+      const imageUrl = imgbbData.data.url;
+      
+      // 3. 공유 데이터 생성
+      const shareData = {
+        title: state.productData?.name || 'AI 상세페이지',
+        description: state.productData?.description || '',
+        image: imageUrl,
+        createdAt: new Date().toISOString()
+      };
+      
+      // 4. Base64로 인코딩하여 URL 파라미터로 전달
+      const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
+      const shareUrl = `${window.location.origin}${window.location.pathname}?view=${encodedData}`;
+      
+      // 5. 클립보드에 링크만 복사
+      console.log('복사할 URL:', shareUrl);  // 디버깅용
+      
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        console.log('클립보드 복사 성공');
+        alert('✅ 링크가 복사되었습니다!');
+      } catch (clipboardError) {
+        console.error('클립보드 복사 실패:', clipboardError);
+        // fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('✅ 링크가 복사되었습니다!');
+      }
+      
     } catch (error) {
       console.error('공유 링크 생성 실패:', error);
-      alert('공유 링크 생성에 실패했습니다.');
+      alert('공유 링크 생성에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsGeneratingLink(false);
     }
   };
 
@@ -454,7 +600,7 @@ const App: React.FC = () => {
     });
   };
 
-  // 1. Loading State (Checking Key)
+  // 1. Loading State (Checking Key) - 최초 로딩만 표시
   if (isCheckingKey) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -463,116 +609,179 @@ const App: React.FC = () => {
     );
   }
 
-  // 2. Key Selection Screen
-  if (!isKeyReady) {
+  // 2. 뷰 페이지 표시
+  if (isViewingSharedPage && sharedPageData) {
     return (
-      <>
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-lg w-full border border-slate-100 text-center">
-             <div className="text-6xl mb-6">🛍️</div>
-             <h1 className="text-3xl font-bold text-slate-900 mb-2">AI 상세페이지 제작</h1>
-             <p className="text-slate-500 mb-8 text-lg">
-               전문가급 쇼핑몰 상세페이지, <br/>
-               지금 바로 시작해보세요.
-             </p>
-             
-             <div className="space-y-4">
-               <button 
-                 onClick={handleSelectKey}
-                 className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
-               >
-                 <span>🔑</span>
-                 Nano Banana API Key 연결하기
-               </button>
-               
-               <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-5 text-left mb-4">
-                 <div className="flex items-center gap-2 mb-3">
-                   <span className="text-2xl">🎁</span>
-                   <strong className="text-green-700 text-lg">신규 가입 혜택!</strong>
-                 </div>
-                 <p className="text-green-800 mb-2">
-                   kie.ai 첫 가입 시 <strong className="text-green-900">80 크레딧 무료 제공!</strong>
-                 </p>
-                 <ul className="text-green-700 text-sm space-y-1 mb-3">
-                   <li>• 이미지 1장 = 4 크레딧 ($0.02)</li>
-                   <li>• <strong>무료로 이미지 20장 생성 가능</strong></li>
-                   <li>• <strong>상세페이지 약 1~2건 무료 제작!</strong></li>
-                 </ul>
-               </div>
-               
-               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left text-sm text-slate-600 mb-4">
-                 <strong>안내:</strong> AI 상세페이지 제작은 Nano Banana AI 모델을 사용하여 고화질 이미지를 생성합니다. 
-                 이미지 생성을 위해 kie.ai에서 발급받은 API Key가 필요합니다.<br/><br/>
-                 <strong>요금 안내:</strong><br/>
-                 • 이미지 1장당 약 $0.02 (약 27원)<br/>
-                 • 상세페이지 1건 (12장): 약 $0.24 (약 320원)
-               </div>
-               
-               <a 
-                 href="https://kie.ai/api-key" 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="inline-block text-xs text-blue-500 hover:text-blue-600 underline font-medium"
-               >
-                 kie.ai에서 API Key 발급받기 &rarr;
-               </a>
-             </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        {/* 헤더 */}
+        <header className="sticky top-0 z-50 bg-white shadow-sm">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🛍️</span>
+              <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                AI 상세페이지
+              </span>
+            </div>
+            <a 
+              href={window.location.origin + window.location.pathname}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-full hover:opacity-90 transition-opacity"
+            >
+              🚀 나도 만들기
+            </a>
           </div>
-        </div>
-        <SettingsModal 
-          isOpen={showSettings} 
-          onClose={handleSettingsClose} 
-        />
-      </>
+        </header>
+        
+        {/* 메인 컨텐츠 */}
+        <main className="max-w-2xl mx-auto px-4 py-6">
+          {/* 상품 정보 카드 */}
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
+            <div className="p-5 border-b border-slate-100">
+              <h1 className="text-xl font-bold text-slate-800 mb-2">{sharedPageData.title}</h1>
+              {sharedPageData.description && (
+                <p className="text-sm text-slate-600 line-clamp-3">{sharedPageData.description}</p>
+              )}
+            </div>
+            
+            {/* 상세페이지 이미지 (1장) */}
+            <div className="p-4">
+              <img 
+                src={sharedPageData.image} 
+                alt={sharedPageData.title}
+                className="w-full rounded-xl shadow-sm"
+                loading="lazy"
+              />
+            </div>
+          </div>
+          
+          {/* 홍보 영역 */}
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white text-center shadow-lg">
+            <div className="text-3xl mb-3">✨</div>
+            <h2 className="text-xl font-bold mb-2">AI로 상세페이지 무료 제작</h2>
+            <p className="text-sm opacity-90 mb-5">
+              사진 한 장만 올리면 전문가급 상세페이지가 자동 생성됩니다!
+            </p>
+            <a 
+              href={window.location.origin + window.location.pathname}
+              className="inline-block px-8 py-3 bg-white text-purple-600 font-bold rounded-full hover:bg-slate-100 transition-colors shadow-md"
+            >
+              무료로 시작하기 →
+            </a>
+          </div>
+          
+          {/* 기능 소개 */}
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="bg-white rounded-xl p-4 text-center shadow">
+              <div className="text-2xl mb-2">📸</div>
+              <p className="text-xs text-slate-600">사진 업로드</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 text-center shadow">
+              <div className="text-2xl mb-2">🤖</div>
+              <p className="text-xs text-slate-600">AI 자동 생성</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 text-center shadow">
+              <div className="text-2xl mb-2">💾</div>
+              <p className="text-xs text-slate-600">바로 다운로드</p>
+            </div>
+          </div>
+          
+          {/* 푸터 */}
+          <p className="text-center text-xs text-slate-400 mt-8 mb-4">
+            © AI 상세페이지 제작 • ai-detail-page.netlify.app
+          </p>
+        </main>
+      </div>
     );
   }
 
-  // 3. Main App UI
+  // 3. Main App UI (항상 표시)
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🛍️</span>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              AI 상세페이지 제작
-            </h1>
-            <span className="ml-2 text-xs text-slate-400 font-normal">v1.5.0</span>
-          </div>
+      <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between">
+          {/* Left: Logo & Title */}
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <span className="text-xl md:text-2xl">🛍️</span>
+            <div className="text-left">
+              <h1 className="text-base md:text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                AI 상세페이지 제작
+              </h1>
+              <p className="text-[10px] md:text-xs text-slate-400">v1.7.0</p>
+            </div>
+          </button>
           
-          <div className="flex items-center gap-4">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
              {state.step === 'input' && (
                <>
                  <button
                    onClick={() => setShowHistory(true)}
-                   className="flex items-center gap-2 px-4 py-2 bg-white shadow-lg hover:shadow-xl rounded-xl text-slate-600 border border-slate-200 transition-all duration-300 hover:scale-105"
+                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-white shadow-sm md:shadow-lg hover:shadow-md md:hover:shadow-xl rounded-lg md:rounded-xl text-xs md:text-sm text-slate-600 border border-slate-200 transition-all duration-200 md:duration-300 md:hover:scale-105"
                  >
                    <span>📋</span>
-                   <span className="text-sm font-medium">히스토리 ({history.length})</span>
+                   <span className="font-medium">히스토리 ({history.length})</span>
+                 </button>
+                 {/* Mobile icon buttons */}
+                 <button
+                   onClick={() => setShowHistory(true)}
+                   className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 text-lg shadow-sm"
+                   aria-label="히스토리"
+                 >
+                   📋
                  </button>
                  <button
                    onClick={() => setShowSettings(true)}
-                   className="flex items-center gap-2 px-4 py-2 bg-white shadow-lg hover:shadow-xl rounded-xl text-slate-600 border border-slate-200 transition-all duration-300 hover:scale-105"
+                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-white shadow-sm md:shadow-lg hover:shadow-md md:hover:shadow-xl rounded-lg md:rounded-xl text-xs md:text-sm text-slate-600 border border-slate-200 transition-all duration-200 md:duration-300 md:hover:scale-105"
                  >
                    <span>⚙️</span>
-                   <span className="text-sm font-medium">API 설정</span>
+                   <span className="font-medium">API 설정</span>
+                 </button>
+                 <button
+                   onClick={() => setShowSettings(true)}
+                   className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 text-lg shadow-sm"
+                   aria-label="API 설정"
+                 >
+                   ⚙️
                  </button>
                </>
              )}
              {state.step === 'preview' && (
-               <div className="flex items-center gap-4 hidden md:flex">
-                 <span className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-500 font-mono">
-                   Model: {state.productData.selectedModel === 'pro' ? 'Nano Banana Pro' : 'Nano Banana'}
-                 </span>
-                 <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold uppercase">
-                   {state.productData.platform}
-                 </span>
-                 <div className="text-sm font-medium text-slate-500">
-                    {state.productData.name}
+               <>
+                 {/* 모바일 되돌리기/앞으로 버튼 */}
+                 <div className="flex sm:hidden mr-1">
+                   <button
+                     onClick={handleUndo}
+                     disabled={currentHistoryIndex <= 0}
+                     className="px-2 py-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs font-medium rounded-l-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                   >
+                     ↶ 되돌리기
+                   </button>
+                   <button
+                     onClick={handleRedo}
+                     disabled={currentHistoryIndex >= stateHistory.length - 1}
+                     className="px-2 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-medium rounded-r-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                   >
+                     앞으로 ↷
+                   </button>
                  </div>
-               </div>
+                 {/* 데스크톱 정보 표시 */}
+                 <div className="flex items-center gap-4 hidden md:flex">
+                   <span className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-500 font-mono">
+                     Model: {state.productData.selectedModel === 'pro' ? 'Nano Banana Pro' : 'Nano Banana'}
+                   </span>
+                   <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold uppercase">
+                     {state.productData.platform}
+                   </span>
+                   <div className="text-sm font-medium text-slate-500">
+                      {state.productData.name}
+                   </div>
+                 </div>
+               </>
              )}
           </div>
         </div>
@@ -625,6 +834,13 @@ const App: React.FC = () => {
           <>
             {/* 히스토리 저장 버튼 */}
             <div className="flex justify-end gap-2 mb-4">
+              {/* PC에서만 표시: 모바일 미리보기 토글 */}
+              <button
+                onClick={() => setIsMobilePreview(!isMobilePreview)}
+                className="hidden md:flex px-3 py-2 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-all items-center gap-2"
+              >
+                {isMobilePreview ? '🖥️ PC 보기' : '📱 모바일 보기'}
+              </button>
               <button
                 onClick={saveToHistory}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-purple-700 transition-all flex items-center gap-2"
@@ -633,29 +849,45 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={generateShareLink}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700 transition-all flex items-center gap-2"
+                disabled={isGeneratingLink}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                🔗 공유 링크 복사
+                {isGeneratingLink ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>링크 생성중...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔗</span>
+                    <span>공유 링크 복사</span>
+                  </>
+                )}
               </button>
             </div>
             
-            <DetailPagePreview 
-              images={state.generatedImages}
-              mainImageIndex={state.mainImageIndex}
-              copy={state.generatedCopy}
-              productData={state.productData}
-              onImageUpdate={handleImageUpdate}
-              onMainImageSelect={handleMainImageSelect}
-              onReset={handleReset}
-              onCopyUpdate={handleCopyUpdate}
-              onRegenerateImage={handleRegenerateImage}
-              originalImages={state.productData.images}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              canUndo={currentHistoryIndex > 0}
-              canRedo={currentHistoryIndex < stateHistory.length - 1}
-              onImageReorder={handleImageReorder}
-            />
+            {/* 상세페이지 미리보기 */}
+            <div className={isMobilePreview ? "flex justify-center py-4" : ""}>
+              <div className={isMobilePreview ? "w-[375px] bg-white shadow-2xl rounded-lg overflow-hidden" : "w-full"}>
+                <DetailPagePreview 
+                  images={state.generatedImages}
+                  mainImageIndex={state.mainImageIndex}
+                  copy={state.generatedCopy}
+                  productData={state.productData}
+                  onImageUpdate={handleImageUpdate}
+                  onMainImageSelect={handleMainImageSelect}
+                  onReset={handleReset}
+                  onCopyUpdate={handleCopyUpdate}
+                  onRegenerateImage={handleRegenerateImage}
+                  originalImages={state.productData.images}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  canUndo={currentHistoryIndex > 0}
+                  canRedo={currentHistoryIndex < stateHistory.length - 1}
+                  onImageReorder={handleImageReorder}
+                />
+              </div>
+            </div>
           </>
         )}
       </main>
@@ -672,7 +904,8 @@ const App: React.FC = () => {
       {/* Settings Modal */}
       <SettingsModal 
         isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
+        onClose={handleSettingsClose}
+        autoCloseOnSave={pendingGenerate}
       />
 
       {/* History Modal */}
