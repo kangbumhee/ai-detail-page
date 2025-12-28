@@ -6,11 +6,19 @@ import { uploadToCloudinary } from './cloudinaryService';
 // ========================================
 
 const getGeminiApiKey = (): string => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API 키가 설정되지 않았습니다. VITE_GEMINI_API_KEY 환경변수를 설정해주세요.');
+  // 1. localStorage에서 사용자 설정 키 확인
+  const userKey = localStorage.getItem('gemini_api_key');
+  if (userKey && userKey.trim()) {
+    return userKey.trim();
   }
-  return apiKey;
+  
+  // 2. 환경변수에서 확인
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (envKey) {
+    return envKey;
+  }
+  
+  throw new Error('Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.');
 };
 
 const TEXT_MODEL = 'gemini-2.0-flash';
