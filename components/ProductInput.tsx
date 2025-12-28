@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { ProductData, Platform } from '../types';
+import { ProductData, Platform, PageLength, ThumbnailConfig } from '../types';
 import { Button } from './Button';
 import { Toast } from './Toast';
 import { searchProductInfo, analyzeFileContent, analyzeProductImage, analyzeImageWithVision } from '../services/geminiService';
@@ -61,6 +61,13 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isDraggable, setIsDraggable] = useState(false);
+  
+  // 새로 추가: 페이지 설정 state
+  const [pageLength, setPageLength] = useState<PageLength>('auto');
+  const [category, setCategory] = useState<string>('');
+  const [targetGender, setTargetGender] = useState<'male' | 'female' | 'all'>('all');
+  const [targetAge, setTargetAge] = useState<string[]>([]);
+  const [generateThumbnail, setGenerateThumbnail] = useState(true);
 
   const handleTextChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -338,9 +345,36 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (data.images.length > 0) {
-      onSubmit(data);
+    
+    // 유효성 검사
+    if (!data.name.trim()) {
+      setToast({ message: '상품명을 입력해주세요.', type: 'error' });
+      return;
     }
+    if (data.images.length === 0) {
+      setToast({ message: '상품 이미지를 1장 이상 업로드해주세요.', type: 'error' });
+      return;
+    }
+    if (!category) {
+      setToast({ message: '카테고리를 선택해주세요.', type: 'error' });
+      return;
+    }
+
+    onSubmit({
+      ...data,
+      // 새로 추가된 필드들
+      pageLength: pageLength || 'auto',
+      category,
+      targetGender: targetGender || 'all',
+      targetAge: targetAge || [],
+      thumbnailConfig: generateThumbnail ? {
+        style: 'clean',
+        includeHand: false,
+        includeModel: false,
+        textOverlay: data.name,
+        textPosition: 'center'
+      } : undefined
+    });
   };
 
   const handleModelChange = (model: 'flash' | 'pro') => {
@@ -781,6 +815,176 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
             <p className="text-slate-400 text-xs md:text-sm mt-2">
               제품명 입력 후 자동검색하면 설명과 타겟이 자동으로 채워집니다
             </p>
+          </div>
+
+          {/* 카테고리 선택 */}
+          <div className="mb-4 md:mb-6">
+            <label className="block text-sm md:text-base font-bold text-slate-700 mb-2">
+              카테고리 *
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {['패션/의류', '뷰티/화장품', '식품/건강', '생활/가전', '유아/키즈', '스포츠/레저', '디지털/IT', '기타'].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategory(cat)}
+                  className={`py-2 px-3 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                    category === cat
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 페이지 길이 선택 */}
+          <div className="mb-4 md:mb-6">
+            <label className="block text-sm md:text-base font-bold text-slate-700 mb-2">
+              상세페이지 길이 *
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+              <button
+                type="button"
+                onClick={() => setPageLength('auto')}
+                className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
+                  pageLength === 'auto'
+                    ? 'border-blue-500 bg-blue-50 shadow-lg'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="text-xl md:text-2xl mb-1">🤖</div>
+                <div className="font-bold text-xs md:text-sm">AI 추천</div>
+                <div className="text-xs text-slate-500">상품에 맞게</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setPageLength(5)}
+                className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
+                  pageLength === 5
+                    ? 'border-green-500 bg-green-50 shadow-lg'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="text-xl md:text-2xl mb-1">⚡</div>
+                <div className="font-bold text-xs md:text-sm">5장 (간단)</div>
+                <div className="text-xs text-slate-500">저가/단순 상품</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setPageLength(7)}
+                className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
+                  pageLength === 7
+                    ? 'border-yellow-500 bg-yellow-50 shadow-lg'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="text-xl md:text-2xl mb-1">📄</div>
+                <div className="font-bold text-xs md:text-sm">7장 (표준)</div>
+                <div className="text-xs text-slate-500">일반 상품</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setPageLength(9)}
+                className={`p-3 md:p-4 rounded-xl border-2 transition-all ${
+                  pageLength === 9
+                    ? 'border-purple-500 bg-purple-50 shadow-lg'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="text-xl md:text-2xl mb-1">📚</div>
+                <div className="font-bold text-xs md:text-sm">9장 (상세)</div>
+                <div className="text-xs text-slate-500">고가/고관여</div>
+              </button>
+            </div>
+          </div>
+
+          {/* 타겟 설정 */}
+          <div className="mb-4 md:mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 성별 */}
+            <div>
+              <label className="block text-sm md:text-base font-bold text-slate-700 mb-2">
+                타겟 성별
+              </label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'all', label: '전체', icon: '👥' },
+                  { value: 'female', label: '여성', icon: '👩' },
+                  { value: 'male', label: '남성', icon: '👨' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTargetGender(option.value as any)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                      targetGender === option.value
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {option.icon} {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* 연령대 */}
+            <div>
+              <label className="block text-sm md:text-base font-bold text-slate-700 mb-2">
+                타겟 연령대 (복수선택)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {['10대', '20대', '30대', '40대', '50대', '60대+'].map((age) => (
+                  <button
+                    key={age}
+                    type="button"
+                    onClick={() => {
+                      setTargetAge(prev => 
+                        prev.includes(age) 
+                          ? prev.filter(a => a !== age)
+                          : [...prev, age]
+                      );
+                    }}
+                    className={`py-1 px-3 rounded-full text-xs font-medium transition-all ${
+                      targetAge.includes(age)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {age}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 썸네일 생성 옵션 */}
+          <div className="mb-4 md:mb-6 p-3 md:p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg md:text-xl">🖼️</span>
+                <span className="font-bold text-slate-800 text-sm md:text-base">썸네일 자동 생성</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={generateThumbnail}
+                  onChange={(e) => setGenerateThumbnail(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+            {generateThumbnail && (
+              <p className="text-xs md:text-sm text-slate-600">
+                1:1 비율의 대표 이미지를 자동으로 생성합니다.
+              </p>
+            )}
           </div>
 
           {/* Price & Discount - 상품명 아래로 이동 */}
