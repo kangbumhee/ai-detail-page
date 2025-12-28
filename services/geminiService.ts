@@ -29,8 +29,101 @@ const getKieApiKey = (): string => {
   return apiKey.trim();
 };
 
+// ========================================
+// Kie.ai API 설정
+// ========================================
+
+// Kie.ai 태스크 생성
+async function createKieTask(prompt: string, imageSize: string = '9:16', imageUrls?: string[]): Promise<string> {
+  const apiKey = getKieApiKey();
+  
+  const body: any = {
+    model: imageUrls && imageUrls.length > 0 ? 'google/nano-banana-edit' : 'google/nano-banana',
+    input: {
+      prompt,
+      output_format: 'png',
+      image_size: imageSize
+    }
+  };
+  
+  // 이미지 편집 모드인 경우 image_urls 추가
+  if (imageUrls && imageUrls.length > 0) {
+    body.input.image_urls = imageUrls;
+  }
+  
+  const response = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Kie.ai 태스크 생성 오류:', error);
+    if (response.status === 401) {
+      throw new Error('Kie.ai API 키가 유효하지 않습니다.');
+    } else if (response.status === 402) {
+      throw new Error('Kie.ai 계정 잔액이 부족합니다.');
+    }
+    throw new Error('이미지 생성 태스크 생성 실패');
+  }
+  
+  const data = await response.json();
+  if (data.code !== 200) {
+    throw new Error(data.msg || '태스크 생성 실패');
+  }
+  
+  return data.data.taskId;
+}
+
+// Kie.ai 태스크 상태 조회 (폴링)
+async function pollKieTask(taskId: string, maxAttempts: number = 60, intervalMs: number = 2000): Promise<string> {
+  const apiKey = getKieApiKey();
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetch(`https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('태스크 상태 조회 실패');
+    }
+    
+    const data = await response.json();
+    
+    if (data.data.state === 'success') {
+      const resultJson = JSON.parse(data.data.resultJson);
+      if (resultJson.resultUrls && resultJson.resultUrls.length > 0) {
+        return resultJson.resultUrls[0];
+      }
+      throw new Error('생성된 이미지 URL이 없습니다');
+    } else if (data.data.state === 'fail') {
+      throw new Error(data.data.failMsg || '이미지 생성 실패');
+    }
+    
+    // waiting 상태면 대기 후 재시도
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  
+  throw new Error('이미지 생성 시간 초과');
+}
+
+// Kie.ai로 이미지 생성 (통합 함수)
+async function generateImageWithKie(prompt: string, imageSize: string = '9:16', referenceImageUrl?: string): Promise<string> {
+  const imageUrls = referenceImageUrl ? [referenceImageUrl] : undefined;
+  const taskId = await createKieTask(prompt, imageSize, imageUrls);
+  const imageUrl = await pollKieTask(taskId);
+  return imageUrl;
+}
+
 const TEXT_MODEL = 'gemini-2.0-flash';
-const IMAGE_MODEL = 'gemini-2.0-flash-exp-image-generation';
+const IMAGE_MODEL = 'gemini-2.0-flash-exp-image-generation'; // 편집 함수에서만 사용
 
 // ========================================
 // 1. 판매 논리 프레임워크 정의
@@ -168,10 +261,8 @@ JSON만 출력하세요.
 export async function generateSectionImage(
   section: DetailSection,
   productData: ProductData,
-  referenceImage?: string  // Base64 원본 제품 이미지
+  referenceImage?: string
 ): Promise<string> {
-  // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
-  const apiKey = getGeminiApiKey();
   
   const textInstruction = `
 IMPORTANT TEXT RENDERING:
@@ -185,7 +276,6 @@ ${section.subMessage ? `- Also include smaller text: "${section.subMessage}"` : 
 
   const fullPrompt = `
 Create a high-quality e-commerce product detail image for Korean online shopping.
-Aspect ratio: 9:16 (vertical, 1080x1920 pixels concept)
 
 ${section.visualPrompt}
 
@@ -194,68 +284,31 @@ ${textInstruction}
 Style requirements:
 - Professional product photography quality
 - Clean, modern Korean e-commerce aesthetic
-- ${productData.platform === 'coupang' ? 'Coupang' : 'Naver Smartstore'} style design
-- Target audience: ${productData.targetGender === 'female' ? 'women' : productData.targetGender === 'male' ? 'men' : 'general'} in ${(productData.targetAge || []).join(', ') || 'all ages'}
+- Target audience: ${productData.targetGender === 'female' ? 'women' : productData.targetGender === 'male' ? 'men' : 'general'}
 
-${referenceImage ? 'IMPORTANT: Use the attached reference image as the main product. Keep the product appearance consistent but change the background/styling as described.' : ''}
+Product: ${productData.name}
 `;
 
-  const parts: any[] = [{ text: fullPrompt }];
-  
-  // Img2Img: 원본 이미지가 있으면 첨부
-  if (referenceImage && productData.images.length > 0) {
-    const mainImage = productData.images[0];
-    const matches = mainImage.match(/^data:image\/([a-z]+);base64,(.+)$/);
-    if (matches) {
-      const mimeType = `image/${matches[1]}`;
-      const base64Data = matches[2];
-      parts.push({
-        inline_data: {
-          mime_type: mimeType,
-          data: base64Data
-        }
-      });
+  try {
+    // 참조 이미지가 있으면 Cloudinary에 먼저 업로드해서 URL 획득
+    let referenceImageUrl: string | undefined;
+    if (referenceImage && productData.images.length > 0) {
+      const mainImage = productData.images[0];
+      if (mainImage.startsWith('http')) {
+        referenceImageUrl = mainImage;
+      } else if (mainImage.startsWith('data:image')) {
+        // base64 이미지를 Cloudinary에 업로드
+        const { uploadToCloudinary } = await import('./cloudinaryService');
+        referenceImageUrl = await uploadToCloudinary(mainImage, 'reference-images');
+      }
     }
-  }
-
-  // TODO: Kie.ai API 엔드포인트 및 요청 형식으로 변경 필요
-  // 현재는 Gemini API 형식 유지 (Kie.ai API 문서 확인 후 수정 필요)
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseModalities: ['image', 'text'],
-          temperature: 0.8
-        }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('이미지 생성 오류:', error);
+    
+    const imageUrl = await generateImageWithKie(fullPrompt, '9:16', referenceImageUrl);
+    return imageUrl;
+  } catch (error) {
+    console.error('Kie.ai 이미지 생성 실패:', error);
     throw new Error('이미지 생성 실패');
   }
-
-  const data = await response.json();
-  
-  // 이미지 추출
-  const imagePart = data.candidates?.[0]?.content?.parts?.find(
-    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
-  );
-  
-  if (!imagePart) throw new Error('이미지 생성 실패: 이미지 데이터가 없습니다');
-  
-  const base64Image = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-  
-  // Cloudinary에 업로드
-  const cloudinaryUrl = await uploadToCloudinary(base64Image, 'detail-sections');
-  
-  return cloudinaryUrl;
 }
 
 // ========================================
@@ -263,13 +316,10 @@ ${referenceImage ? 'IMPORTANT: Use the attached reference image as the main prod
 // ========================================
 
 export async function generateThumbnail(productData: ProductData): Promise<string> {
-  // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
-  const apiKey = getGeminiApiKey();
   const config = productData.thumbnailConfig;
   
   const prompt = `
 Create a professional e-commerce product thumbnail image.
-Aspect ratio: 1:1 (square, 800x800 pixels concept)
 
 Product: ${productData.name}
 Category: ${productData.category || '일반'}
@@ -289,64 +339,29 @@ TEXT OVERLAY:
 
 Requirements:
 - High-quality product photography
-- Perfect for ${productData.platform === 'coupang' ? 'Coupang' : 'Naver Smartstore'} main image
 - Eye-catching and click-worthy
 - Korean market aesthetic
 `;
 
-  const parts: any[] = [{ text: prompt }];
-  
-  // 원본 제품 이미지 첨부
-  if (productData.images.length > 0) {
-    const mainImage = productData.images[0];
-    const matches = mainImage.match(/^data:image\/([a-z]+);base64,(.+)$/);
-    if (matches) {
-      const mimeType = `image/${matches[1]}`;
-      const base64Data = matches[2];
-      parts.push({
-        inline_data: {
-          mime_type: mimeType,
-          data: base64Data
-        }
-      });
+  try {
+    // 참조 이미지가 있으면 URL 획득
+    let referenceImageUrl: string | undefined;
+    if (productData.images.length > 0) {
+      const mainImage = productData.images[0];
+      if (mainImage.startsWith('http')) {
+        referenceImageUrl = mainImage;
+      } else if (mainImage.startsWith('data:image')) {
+        const { uploadToCloudinary } = await import('./cloudinaryService');
+        referenceImageUrl = await uploadToCloudinary(mainImage, 'reference-images');
+      }
     }
-  }
-
-  // TODO: Kie.ai API 엔드포인트 및 요청 형식으로 변경 필요
-  // 현재는 Gemini API 형식 유지 (Kie.ai API 문서 확인 후 수정 필요)
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseModalities: ['image', 'text'],
-          temperature: 0.8
-        }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('썸네일 생성 오류:', error);
+    
+    const imageUrl = await generateImageWithKie(prompt, '1:1', referenceImageUrl);
+    return imageUrl;
+  } catch (error) {
+    console.error('Kie.ai 썸네일 생성 실패:', error);
     throw new Error('썸네일 생성 실패');
   }
-
-  const data = await response.json();
-  
-  const imagePart = data.candidates?.[0]?.content?.parts?.find(
-    (p: any) => p.inlineData?.mimeType?.startsWith('image/')
-  );
-  
-  if (!imagePart) throw new Error('썸네일 생성 실패: 이미지 데이터가 없습니다');
-  
-  const base64Image = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-  const cloudinaryUrl = await uploadToCloudinary(base64Image, 'thumbnails');
-  
-  return cloudinaryUrl;
 }
 
 // ========================================
