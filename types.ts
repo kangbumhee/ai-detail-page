@@ -111,3 +111,4 @@ export interface HistoryItem {
   thumbnail: string;
   originalImages?: string[];  // 참고 이미지 URL 추가
 }
+
