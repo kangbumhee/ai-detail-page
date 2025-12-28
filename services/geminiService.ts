@@ -265,13 +265,11 @@ export async function generateSectionImage(
 ): Promise<string> {
   
   const textInstruction = `
-IMPORTANT TEXT RENDERING:
-- Render this Korean text clearly on the image: "${section.keyMessage}"
-${section.subMessage ? `- Also include smaller text: "${section.subMessage}"` : ''}
-- Text position: ${section.textPosition} of the image
-- Text style: ${section.textStyle === 'light' ? 'white text with dark shadow' : 'dark text with light background'}
-- Text must be perfectly readable and aesthetically pleasing
-- Use modern Korean typography style
+IMPORTANT: Generate image WITHOUT any text overlays.
+- No text, titles, watermarks, or Korean characters on the image
+- Create a clean visual background suitable for ${productData.category || '일반'} category
+- Leave appropriate space for text overlay at ${section.textPosition} position
+- Focus on high-quality product photography
 `;
 
   const fullPrompt = `
@@ -373,65 +371,55 @@ export async function generateFullDetailPage(
   onProgress?: (current: number, total: number, message: string) => void
 ): Promise<GeneratedDetailPage> {
   
-  // 1단계: 기획
+  // 1단계: 기획 (순차 - 이건 먼저 완료되어야 함)
   onProgress?.(0, 100, '상세페이지 구조를 기획하고 있습니다...');
   const sections = await planDetailPage(productData);
   
-  const totalSteps = sections.length + (productData.thumbnailConfig ? 1 : 0);
-  let completedSteps = 0;
+  onProgress?.(10, 100, `${sections.length}개 이미지를 동시에 생성 시작...`);
   
-  // 2단계: 섹션별 이미지 생성
-  const generatedSections: DetailSection[] = [];
-  
-  for (const section of sections) {
-    onProgress?.(
-      Math.round((completedSteps / totalSteps) * 100),
-      100,
-      `${section.order}번 이미지 생성 중: ${LOGIC_TYPE_INFO[section.logicType].title}`
-    );
-    
+  // 2단계: 모든 섹션 이미지를 병렬로 생성 (Promise.all 사용)
+  const imagePromises = sections.map(async (section) => {
     try {
       const imageUrl = await generateSectionImage(
         section,
         productData,
-        productData.images[0]  // 첫 번째 이미지를 Img2Img 레퍼런스로 사용
+        productData.images[0]
       );
-      
-      generatedSections.push({
+      return {
         ...section,
         imageUrl,
         isGenerating: false
-      });
-    } catch (error) {
-      console.error(`Section ${section.order} generation failed:`, error);
-      generatedSections.push({
-        ...section,
-        isGenerating: false
-      });
-    }
-    
-    completedSteps++;
-  }
-  
-  // 3단계: 썸네일 생성 (옵션)
-  let thumbnail = undefined;
-  if (productData.thumbnailConfig) {
-    onProgress?.(
-      Math.round((completedSteps / totalSteps) * 100),
-      100,
-      '썸네일을 생성하고 있습니다...'
-    );
-    
-    try {
-      const thumbnailUrl = await generateThumbnail(productData);
-      thumbnail = {
-        imageUrl: thumbnailUrl,
-        prompt: `${productData.name} thumbnail`
       };
     } catch (error) {
-      console.error('Thumbnail generation failed:', error);
+      console.error(`Section ${section.order} generation failed:`, error);
+      return {
+        ...section,
+        isGenerating: false
+      };
     }
-  }
+  });
+  
+  // 썸네일도 동시에 생성
+  const thumbnailPromise = productData.thumbnailConfig 
+    ? generateThumbnail(productData)
+        .then(thumbnailUrl => ({
+          imageUrl: thumbnailUrl,
+          prompt: `${productData.name} thumbnail`
+        }))
+        .catch(error => {
+          console.error('Thumbnail generation failed:', error);
+          return undefined;
+        })
+    : Promise.resolve(undefined);
+  
+  // 진행률 업데이트
+  onProgress?.(30, 100, `${sections.length}개 이미지 병렬 생성 중...`);
+  
+  // 모든 이미지 + 썸네일 동시 완료 대기
+  const [generatedSections, thumbnail] = await Promise.all([
+    Promise.all(imagePromises),
+    thumbnailPromise
+  ]);
   
   onProgress?.(100, 100, '완료!');
   

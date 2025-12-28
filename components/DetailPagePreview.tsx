@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { DetailSection, ProductData, GeneratedDetailPage, SalesLogicType } from '../types';
 import { regenerateSection } from '../services/geminiService';
+import { getTheme, CategoryTheme } from '../services/categoryThemes';
 
 interface DetailPagePreviewProps {
   generatedPage: GeneratedDetailPage;
@@ -31,6 +32,7 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const { sections, thumbnail } = generatedPage;
+  const theme = getTheme(productData.category || '기타');
 
   const handleDownloadAll = async () => {
     if (!previewRef.current) return;
@@ -180,11 +182,64 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
 
               {/* 이미지 */}
               {section.imageUrl ? (
-                <img 
-                  src={section.imageUrl} 
-                  alt={section.title}
-                  className="w-full h-auto"
-                />
+                <div className="relative w-full">
+                  <img 
+                    src={section.imageUrl} 
+                    alt={section.title}
+                    className="w-full h-auto"
+                  />
+                  
+                  {/* 텍스트 오버레이 - 테마 적용 */}
+                  {(section.keyMessage || section.subMessage) && (
+                    <div 
+                      className={`absolute inset-0 flex flex-col pointer-events-none
+                        ${section.textPosition === 'top' ? 'justify-start' : ''}
+                        ${section.textPosition === 'center' ? 'justify-center' : ''}
+                        ${section.textPosition === 'bottom' ? 'justify-end' : ''}
+                        ${theme.overlayGradient}
+                      `}
+                    >
+                      <div 
+                        className={`p-6 md:p-10 text-center
+                          ${section.textPosition === 'top' ? 'pt-8 md:pt-16' : ''}
+                          ${section.textPosition === 'bottom' ? 'pb-8 md:pb-16' : ''}
+                        `}
+                      >
+                        {/* 섹션 배지 */}
+                        {section.title && (
+                          <span className={`inline-block px-3 py-1 mb-4 ${theme.badgeStyle}`}>
+                            {section.title}
+                          </span>
+                        )}
+                        
+                        {/* 메인 메시지 */}
+                        {section.keyMessage && (
+                          <h2 
+                            className={`text-xl md:text-3xl lg:text-4xl mb-2 md:mb-4 leading-tight
+                              ${theme.headingStyle}
+                              ${section.textStyle === 'light' ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-slate-800'}
+                            `}
+                            style={{ wordBreak: 'keep-all' }}
+                          >
+                            {section.keyMessage}
+                          </h2>
+                        )}
+                        
+                        {/* 서브 메시지 */}
+                        {section.subMessage && (
+                          <p 
+                            className={`text-base md:text-xl lg:text-2xl opacity-90
+                              ${theme.bodyStyle}
+                              ${section.textStyle === 'light' ? 'text-white/90' : 'text-slate-600'}
+                            `}
+                          >
+                            {section.subMessage}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : section.isGenerating ? (
                 <div className="w-full aspect-[9/16] bg-slate-100 flex items-center justify-center">
                   <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full" />
