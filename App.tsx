@@ -391,9 +391,10 @@ const App: React.FC = () => {
         ...state.productData,
         images: [] // 원본 이미지(Base64)는 저장하지 않음
       },
-      generatedImages: filteredImages,
-      generatedCopy: state.generatedCopy,
-      thumbnail: filteredImages[0]?.url || '',
+      generatedImages: sectionImages,
+      generatedCopy: null, // 새로운 구조에서는 generatedCopy 사용 안 함
+      generatedPage: state.generatedPage, // 새로운 구조 저장
+      thumbnail: state.generatedPage?.thumbnail?.imageUrl || sectionImages[0]?.url || '',
       originalImages: state.productData.images.filter(url => !url.startsWith('data:'))  // 외부 URL만 저장
     };
     
@@ -413,7 +414,9 @@ const App: React.FC = () => {
       generatedImages: item.generatedImages,
       mainImageIndex: 0,
       generatedCopy: item.generatedCopy,
-      isEditingImage: false
+      generatedPage: item.generatedPage || null, // 새로운 구조 복원
+      isEditingImage: false,
+      generationProgress: { current: 100, total: 100, message: '완료' }
     });
     setShowHistory(false);
   };

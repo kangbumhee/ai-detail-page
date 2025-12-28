@@ -45,7 +45,7 @@ export async function planDetailPage(productData: ProductData): Promise<DetailSe
   const apiKey = getGeminiApiKey();
   
   // 페이지 길이 결정
-  let targetLength: 5 | 7 | 9;
+  let targetLength: 5 | 7 | 9 = 7; // 기본값 설정
   
   if (productData.pageLength === 'auto') {
     // AI가 결정: 가격과 카테고리 기반
@@ -56,7 +56,7 @@ export async function planDetailPage(productData: ProductData): Promise<DetailSe
     } else {
       targetLength = 5;
     }
-      } else {
+  } else if (productData.pageLength === 5 || productData.pageLength === 7 || productData.pageLength === 9) {
     targetLength = productData.pageLength;
   }
 
