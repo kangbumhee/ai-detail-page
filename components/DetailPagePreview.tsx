@@ -98,8 +98,29 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
               alt="썸네일" 
               className="w-full aspect-square object-cover rounded-lg"
             />
-            <button className="w-full mt-2 py-2 text-sm bg-slate-100 rounded-lg hover:bg-slate-200">
-              다운로드
+            <button 
+              onClick={async () => {
+                if (!thumbnail?.imageUrl) return;
+                try {
+                  const response = await fetch(thumbnail.imageUrl);
+                  const blob = await response.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `thumbnail_${Date.now()}.png`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('썸네일 다운로드 실패:', error);
+                  // 직접 링크 열기 fallback
+                  window.open(thumbnail.imageUrl, '_blank');
+                }
+              }}
+              className="w-full mt-2 py-2 text-sm bg-slate-100 rounded-lg hover:bg-slate-200"
+            >
+              📥 다운로드
             </button>
           </div>
         )}

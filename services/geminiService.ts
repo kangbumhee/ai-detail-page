@@ -275,11 +275,13 @@ export async function generateSectionImage(
 ): Promise<string> {
   
   const textInstruction = `
-IMPORTANT: Generate image WITHOUT any text overlays.
-- No text, titles, watermarks, or Korean characters on the image
-- Create a clean visual background suitable for ${productData.category || '일반'} category
-- Leave appropriate space for text overlay at ${section.textPosition} position
-- Focus on high-quality product photography
+IMPORTANT RULES - MUST FOLLOW:
+- NO text, titles, watermarks, or Korean characters on the image
+- NO boxes, frames, borders, or rectangular shapes for text
+- NO placeholder areas or empty boxes
+- Create a seamless, natural product image
+- Clean visual background suitable for ${productData.category || '일반'} category
+- Focus on high-quality product photography only
 `;
 
   const fullPrompt = `
@@ -341,6 +343,9 @@ ${config?.includeModel ? 'Include a Korean model appropriate for the target demo
 Requirements:
 - High-quality product photography
 - NO text, NO watermarks, NO titles
+- NO boxes, frames, borders, or rectangular shapes
+- NO placeholder areas or empty spaces for text
+- Seamless, natural product image
 - Eye-catching and click-worthy
 - Korean market aesthetic
 `;
