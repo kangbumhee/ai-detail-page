@@ -477,30 +477,11 @@ const App: React.FC = () => {
         currentY += scaledHeight;
       }
       
-      // 2. 합쳐진 이미지를 base64로 변환 후 imgbb 업로드
+      // 2. 합쳐진 이미지를 base64로 변환 후 Cloudinary 업로드
       const mergedImageBase64 = canvas.toDataURL('image/jpeg', 0.9);
-      const base64Data = mergedImageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
       
-      const apiKey = (import.meta as any).env?.VITE_IMGBB_API_KEY;
-      if (!apiKey) {
-        throw new Error('imgbb API 키가 설정되지 않았습니다.');
-      }
-      
-      const formData = new FormData();
-      formData.append('image', base64Data);
-      
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      const imgbbData = await response.json();
-      
-      if (!imgbbData.success || !imgbbData.data?.url) {
-        throw new Error('이미지 업로드 실패');
-      }
-      
-      const imageUrl = imgbbData.data.url;
+      const { uploadToCloudinary } = await import('./services/cloudinaryService');
+      const imageUrl = await uploadToCloudinary(mergedImageBase64, 'shared-pages');
       
       // 3. 공유 데이터 생성
       const shareData = {

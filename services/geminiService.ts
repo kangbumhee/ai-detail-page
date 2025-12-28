@@ -1,6 +1,7 @@
 // Gemini API는 더 이상 사용하지 않음 (Nano Banana와 Groq으로 교체)
 // import { GoogleGenAI, Type } from "@google/genai";
 import { ProductData, GeneratedCopy, GeneratedImage } from "../types";
+import { uploadToCloudinary, uploadExternalImageToCloudinary } from "./cloudinaryService";
 
 // ========== Nano Banana API 설정 ==========
 const NANO_BANANA_API_URL = "https://api.kie.ai/api/v1/jobs/createTask";
@@ -139,107 +140,8 @@ const waitForNanoBananaTask = async (taskId: string): Promise<string[]> => {
   throw new Error("이미지 생성 시간 초과 (120초)");
 };
 
-// ========== imgbb 이미지 업로드 ==========
-const uploadImageToImgbb = async (base64Image: string): Promise<string> => {
-  // 이미 URL이면 그대로 반환
-  if (base64Image.startsWith("http")) {
-    return base64Image;
-  }
-  
-  // SVG 플레이스홀더면 건너뛰기
-  if (base64Image.includes("image/svg+xml")) {
-    throw new Error("SVG 이미지는 업로드할 수 없습니다.");
-  }
-  
-  // imgbb API 키 (환경변수만 사용)
-  const getImgbbApiKey = (): string => {
-    const envKey = (import.meta as any).env?.VITE_IMGBB_API_KEY;
-    if (envKey) {
-      return envKey;
-    }
-    // 환경변수가 없으면 에러
-    throw new Error("imgbb API 키가 설정되지 않았습니다. VITE_IMGBB_API_KEY 환경변수를 설정해주세요.");
-  };
-  
-  const apiKey = getImgbbApiKey();
-  
-  // Base64 데이터 추출 (data:image/xxx;base64, 제거)
-  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
-  
-  // imgbb API 호출 (base64 문자열을 직접 전송)
-  const formData = new FormData();
-  formData.append("image", base64Data);
-  
-  const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-    method: "POST",
-    body: formData,
-  });
-  
-  if (!response.ok) {
-    throw new Error(`imgbb 업로드 실패: ${response.status}`);
-  }
-  
-  const data = await response.json();
-  
-  if (!data.success) {
-    throw new Error("imgbb 업로드 실패: " + (data.error?.message || "알 수 없는 오류"));
-  }
-  
-  // 이미지 URL 반환
-  return data.data.url;
-};
-
-// 외부 URL에서 이미지를 가져와서 imgbb에 업로드 (CORS 문제 해결용)
-async function uploadExternalImageToImgbb(imageUrl: string): Promise<string> {
-  // 이미 imgbb 도메인이면 그대로 반환
-  if (imageUrl.includes('i.ibb.co') || imageUrl.includes('ibb.co')) {
-    return imageUrl;
-  }
-
-  // imgbb API 키 가져오기
-  const getImgbbApiKey = (): string => {
-    const envKey = (import.meta as any).env?.VITE_IMGBB_API_KEY;
-    if (envKey) {
-      return envKey;
-    }
-    throw new Error("imgbb API 키가 설정되지 않았습니다. VITE_IMGBB_API_KEY 환경변수를 설정해주세요.");
-  };
-
-  const imgbbApiKey = getImgbbApiKey();
-  
-  if (!imgbbApiKey) {
-    console.warn('imgbb API 키가 없어서 원본 URL 반환');
-    return imageUrl;
-  }
-
-  try {
-    // imgbb API는 URL 파라미터로 직접 이미지를 가져올 수 있음
-    const formData = new FormData();
-    formData.append('key', imgbbApiKey);
-    formData.append('image', imageUrl); // URL을 직접 전달
-
-    const response = await fetch('https://api.imgbb.com/1/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`imgbb 업로드 실패: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.success && data.data?.url) {
-      console.log('imgbb 업로드 성공:', data.data.url);
-      return data.data.url;
-    } else {
-      throw new Error('imgbb 응답 오류');
-    }
-  } catch (error) {
-    console.error('imgbb 업로드 실패, 원본 URL 반환:', error);
-    return imageUrl;
-  }
-}
+// ========== Cloudinary 이미지 업로드 (imgbb에서 변경) ==========
+// Cloudinary 업로드 함수는 cloudinaryService.ts에서 import하여 사용
 
 // ========== Groq API 설정 (텍스트 생성용) ==========
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -478,9 +380,9 @@ export const analyzeFileContent = async (text: string): Promise<{ description: s
       description: parsed.description || '',
       targetAudience: parsed.targetAudience || ''
     };
-  } catch (e) {
+    } catch (e) {
     console.error("파일 분석 실패:", e);
-    return { description: '', targetAudience: '' };
+  return { description: '', targetAudience: '' };
   }
 };
 
@@ -551,7 +453,7 @@ ${searchResult}
       .replace(/[\u0600-\u06ff]/g, '')  // 아랍어
       .replace(/[\u0e00-\u0e7f]/g, '');  // 태국어
     
-    return {
+        return {
       description: cleanResult.trim(),
       targetAudience: cleanTarget.trim()
     };
@@ -594,10 +496,10 @@ ${searchResult}
         .replace(/[\u0600-\u06ff]/g, '')  // 아랍어
         .replace(/[\u0e00-\u0e7f]/g, '');  // 태국어
       
-      return {
+        return {
         description: cleanFallback.trim(),
-        targetAudience: ''
-      };
+            targetAudience: ''
+        };
     } catch (fallbackError) {
       console.error("Fallback도 실패:", fallbackError);
       throw new Error("검색 결과가 없습니다.");
@@ -671,7 +573,7 @@ export const generateMarketingCopy = async (
 한국어로 작성하고, 구매 욕구를 자극하는 문구를 만들어줘.
 
 플랫폼 가이드라인 (${data.platform.toUpperCase()}):
-${platformRules}
+    ${platformRules}
 
 구조 요구사항:
 - catchphrase: 최대 20자
@@ -758,7 +660,7 @@ export const generateSingleScene = async (
 
   const uploadPromises = imagesToUpload.map(async (img, index) => {
     try {
-      const url = await uploadImageToImgbb(img);
+      const url = await uploadToCloudinary(img, 'generated-images');
       console.log(`참조 이미지 ${index + 1} 업로드 성공:`, url);
       return url;
     } catch (e) {
@@ -780,8 +682,8 @@ Generate a high-end commercial product photo based on the reference image.
 IMPORTANT: The product in the output must look EXACTLY like the product in the reference image.
 Preserve the product's shape, color, logo, label, and all visual details.
 
-[SCENE DESCRIPTION]
-${scenePrompt}
+          [SCENE DESCRIPTION]
+          ${scenePrompt}
 
 [REQUIREMENTS]
 1. Product must match the reference image exactly
@@ -798,14 +700,14 @@ ${scenePrompt}
     const resultUrls = await waitForNanoBananaTask(taskId);
     const generatedImageUrl = resultUrls[0] || getFallbackImage();
     
-    // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
-    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
-      console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+    // 생성된 이미지가 외부 URL이면 Cloudinary에 업로드하여 CORS 문제 해결
+    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('cloudinary.com')) {
+      console.log('생성된 이미지를 Cloudinary에 업로드 중...', generatedImageUrl);
       try {
-        const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
-        return imgbbUrl;
+        const cloudinaryUrl = await uploadExternalImageToCloudinary(generatedImageUrl, 'generated-images');
+        return cloudinaryUrl;
       } catch (error) {
-        console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+        console.warn('Cloudinary 업로드 실패, 원본 URL 사용:', error);
         return generatedImageUrl;
       }
     }
@@ -839,14 +741,14 @@ ${scenePrompt}
       const resultUrls = await waitForNanoBananaTask(taskId);
       const generatedImageUrl = resultUrls[0] || getFallbackImage();
       
-      // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
-      if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
-        console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+      // 생성된 이미지가 외부 URL이면 Cloudinary에 업로드하여 CORS 문제 해결
+      if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('cloudinary.com')) {
+        console.log('생성된 이미지를 Cloudinary에 업로드 중...', generatedImageUrl);
         try {
-          const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
-          return imgbbUrl;
+          const cloudinaryUrl = await uploadExternalImageToCloudinary(generatedImageUrl, 'generated-images');
+          return cloudinaryUrl;
         } catch (error) {
-          console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+          console.warn('Cloudinary 업로드 실패, 원본 URL 사용:', error);
           return generatedImageUrl;
         }
       }
@@ -878,14 +780,14 @@ ${scenePrompt}
     const resultUrls = await waitForNanoBananaTask(taskId);
     const generatedImageUrl = resultUrls[0] || getFallbackImage();
     
-    // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
-    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
-      console.log('생성된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+    // 생성된 이미지가 외부 URL이면 Cloudinary에 업로드하여 CORS 문제 해결
+    if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('cloudinary.com')) {
+      console.log('생성된 이미지를 Cloudinary에 업로드 중...', generatedImageUrl);
       try {
-        const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
-        return imgbbUrl;
+        const cloudinaryUrl = await uploadExternalImageToCloudinary(generatedImageUrl, 'generated-images');
+        return cloudinaryUrl;
       } catch (error) {
-        console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+        console.warn('Cloudinary 업로드 실패, 원본 URL 사용:', error);
         return generatedImageUrl;
       }
     }
@@ -987,18 +889,18 @@ export const generateVariedScenes = async (
 
   // Helper for safe generation with retry
   const generateWithRetry = async (prompt: string, index: number): Promise<GeneratedImage> => {
-    let attempts = 0;
-    const maxAttempts = 3;
+      let attempts = 0;
+      const maxAttempts = 3;
     
-    while (attempts < maxAttempts) {
-      try {
+      while (attempts < maxAttempts) {
+        try {
         // 각 이미지마다 고유한 variation 추가
         const uniquePrompt = `${prompt} [Unique variation: style-${index}, attempt-${attempts}, seed-${Date.now()}-${Math.random().toString(36).substring(7)}]`;
         // 첫 번째 이미지(index 0)는 1:1, 나머지는 16:9
         const aspectRatio = index === 0 ? "1:1" : "16:9";
         const image = await generateSingleScene(modelName, data.images, uniquePrompt, aspectRatio);
-        return { url: image, prompt };
-      } catch (e: any) {
+            return { url: image, prompt };
+        } catch (e: any) {
         attempts++;
         
         // 크레딧 부족이면 즉시 에러 throw (재시도 안 함)
@@ -1006,20 +908,20 @@ export const generateVariedScenes = async (
           throw new Error("CREDITS_INSUFFICIENT");
         }
         
-        const isRateLimit = e.message?.includes('429') || e.message?.includes('Resource has been exhausted');
-        
+            const isRateLimit = e.message?.includes('429') || e.message?.includes('Resource has been exhausted');
+            
         if (isRateLimit && attempts < maxAttempts) {
-          // Exponential backoff: 2s, 4s, etc + jitter
-          const backoff = Math.pow(2, attempts) * 1000 + Math.random() * 1000;
+                // Exponential backoff: 2s, 4s, etc + jitter
+                const backoff = Math.pow(2, attempts) * 1000 + Math.random() * 1000;
           console.warn(`Rate limit hit for scene ${index}, retrying in ${Math.round(backoff)}ms... (attempt ${attempts}/${maxAttempts})`);
-          await delay(backoff);
-          continue;
-        }
-        
+                await delay(backoff);
+                continue;
+            }
+            
         // 일반 에러 또는 재시도 횟수 초과
         if (attempts >= maxAttempts) {
           console.error(`Image gen failed for scene ${index} after ${maxAttempts} attempts:`, prompt, e);
-          return { url: getFallbackImage(), prompt };
+            return { url: getFallbackImage(), prompt };
         }
         
         // 일반 에러일 경우 잠시 대기 후 재시도
@@ -1029,7 +931,7 @@ export const generateVariedScenes = async (
     }
     
     // 루프를 벗어난 경우 (이론적으로 도달하지 않아야 함)
-    return { url: getFallbackImage(), prompt };
+      return { url: getFallbackImage(), prompt };
   };
 
   // Batched Execution
@@ -1069,7 +971,7 @@ export const editProductImage = async (
   // 원본 참조 이미지 업로드
   if (originalReferenceImage) {
     try {
-      const originalUrl = await uploadImageToImgbb(originalReferenceImage);
+      const originalUrl = await uploadToCloudinary(originalReferenceImage, 'generated-images');
       imageUrls.push(originalUrl);
       console.log("원본 참조 이미지 업로드 성공:", originalUrl);
     } catch (e) {
@@ -1079,7 +981,7 @@ export const editProductImage = async (
   
   // 수정할 이미지 업로드
   try {
-    const currentUrl = await uploadImageToImgbb(imageBase64);
+    const currentUrl = await uploadToCloudinary(imageBase64, 'generated-images');
     imageUrls.push(currentUrl);
     console.log("수정할 이미지 업로드 성공:", currentUrl);
   } catch (e) {
@@ -1126,14 +1028,14 @@ ${editPrompt}
   const resultUrls = await waitForNanoBananaTask(taskId);
   const generatedImageUrl = resultUrls[0] || getFallbackImage();
   
-  // 생성된 이미지가 외부 URL이면 imgbb에 업로드하여 CORS 문제 해결
-  if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('i.ibb.co') && !generatedImageUrl.includes('ibb.co')) {
-    console.log('수정된 이미지를 imgbb에 업로드 중...', generatedImageUrl);
+  // 생성된 이미지가 외부 URL이면 Cloudinary에 업로드하여 CORS 문제 해결
+  if (generatedImageUrl.startsWith('http') && !generatedImageUrl.includes('cloudinary.com')) {
+    console.log('수정된 이미지를 Cloudinary에 업로드 중...', generatedImageUrl);
     try {
-      const imgbbUrl = await uploadExternalImageToImgbb(generatedImageUrl);
-      return imgbbUrl;
+      const cloudinaryUrl = await uploadExternalImageToCloudinary(generatedImageUrl, 'generated-images');
+      return cloudinaryUrl;
     } catch (error) {
-      console.warn('imgbb 업로드 실패, 원본 URL 사용:', error);
+      console.warn('Cloudinary 업로드 실패, 원본 URL 사용:', error);
       return generatedImageUrl;
     }
   }
