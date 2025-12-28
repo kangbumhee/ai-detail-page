@@ -216,15 +216,17 @@ const App: React.FC = () => {
   };
 
   const handleInputSubmit = async (data: ProductData) => {
-    // API Key 체크 (Gemini API)
-    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      alert('Gemini API 키가 설정되지 않았습니다. VITE_GEMINI_API_KEY 환경변수를 설정해주세요.');
+    // Kie.ai API 키 체크
+    const kieApiKey = localStorage.getItem('nanoBananaApiKey');
+    if (!kieApiKey || !kieApiKey.trim()) {
+      // API 키 없으면 설정창 열고 대기
+      setPendingGenerate(true);
+      setPendingProductData(data);
+      setShowSettings(true);
       return;
     }
     
-    // API Key가 있으면 생성 진행
+    // 기존 생성 로직 계속...
     await executeGenerate(data);
   };
 
@@ -881,7 +883,22 @@ const App: React.FC = () => {
       {/* Settings Modal */}
       <SettingsModal 
         isOpen={showSettings} 
-        onClose={handleSettingsClose}
+        onClose={() => {
+          setShowSettings(false);
+          // 대기 중인 생성 작업이 있고, API 키가 저장되었으면 자동 시작
+          if (pendingGenerate && pendingProductData) {
+            const kieApiKey = localStorage.getItem('nanoBananaApiKey');
+            if (kieApiKey && kieApiKey.trim()) {
+              setPendingGenerate(false);
+              const dataToGenerate = pendingProductData;
+              setPendingProductData(null);
+              executeGenerate(dataToGenerate);
+            } else {
+              setPendingGenerate(false);
+              setPendingProductData(null);
+            }
+          }
+        }}
         autoCloseOnSave={pendingGenerate}
       />
 

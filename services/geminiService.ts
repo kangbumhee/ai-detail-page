@@ -21,6 +21,14 @@ const getGeminiApiKey = (): string => {
   throw new Error('Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.');
 };
 
+const getKieApiKey = (): string => {
+  const apiKey = localStorage.getItem('nanoBananaApiKey');
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Kie.ai API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.');
+  }
+  return apiKey.trim();
+};
+
 const TEXT_MODEL = 'gemini-2.0-flash';
 const IMAGE_MODEL = 'gemini-2.0-flash-exp-image-generation';
 
@@ -162,7 +170,8 @@ export async function generateSectionImage(
   productData: ProductData,
   referenceImage?: string  // Base64 원본 제품 이미지
 ): Promise<string> {
-  const apiKey = getGeminiApiKey();
+  // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
+  const apiKey = getKieApiKey();
   
   const textInstruction = `
 IMPORTANT TEXT RENDERING:
@@ -209,6 +218,8 @@ ${referenceImage ? 'IMPORTANT: Use the attached reference image as the main prod
     }
   }
 
+  // TODO: Kie.ai API 엔드포인트 및 요청 형식으로 변경 필요
+  // 현재는 Gemini API 형식 유지 (Kie.ai API 문서 확인 후 수정 필요)
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
     {
@@ -252,7 +263,8 @@ ${referenceImage ? 'IMPORTANT: Use the attached reference image as the main prod
 // ========================================
 
 export async function generateThumbnail(productData: ProductData): Promise<string> {
-  const apiKey = getGeminiApiKey();
+  // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
+  const apiKey = getKieApiKey();
   const config = productData.thumbnailConfig;
   
   const prompt = `
@@ -300,6 +312,8 @@ Requirements:
     }
   }
 
+  // TODO: Kie.ai API 엔드포인트 및 요청 형식으로 변경 필요
+  // 현재는 Gemini API 형식 유지 (Kie.ai API 문서 확인 후 수정 필요)
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
     {
