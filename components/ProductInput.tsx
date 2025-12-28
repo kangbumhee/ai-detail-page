@@ -582,6 +582,19 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
 
   return (
     <div className="max-w-5xl mx-auto">
+      {/* 제휴 배너 */}
+      <div className="mb-4 p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white text-center">
+        <a 
+          href="https://kie.ai?ref=3b743440b3f2c39583586ee20a441c6a" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 hover:underline"
+        >
+          <span>🤖</span>
+          <span className="font-medium">AI 이미지 생성 도구 Kie.ai 바로가기</span>
+          <span>→</span>
+        </a>
+      </div>
       {toast && (
         <Toast
           message={toast.message}
@@ -601,43 +614,6 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
             <p className="text-xs md:text-sm text-slate-600">
               Nano Banana AI 모델 사용 • <span className="text-purple-600 font-medium">1장당 ~27원 ($0.02)</span>
             </p>
-          </div>
-
-          {/* Platform Selection */}
-          <div className="mb-4 md:mb-6">
-            <label className="block text-sm md:text-base font-semibold text-slate-700 mb-2 md:mb-3 flex items-center gap-2">
-              <span>🛒</span> 판매 플랫폼
-            </label>
-            <div className="grid grid-cols-2 gap-2 md:gap-3">
-              {/* 스마트스토어 - 왼쪽 (첫 번째) */}
-              <button
-                type="button"
-                onClick={() => handlePlatformChange('smartstore')}
-                className={`p-3 md:p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-lg text-left ${
-                  data.platform === 'smartstore'
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="font-bold text-sm md:text-base text-slate-800">🛍️ 스마트스토어</div>
-                <div className="text-xs md:text-sm text-slate-500 mt-1">9+ 장면 자동 생성</div>
-                <p className="text-xs text-green-600 font-medium mt-1">9장 생성 • 약 243원</p>
-              </button>
-              {/* 쿠팡 - 오른쪽 (두 번째) */}
-              <button
-                type="button"
-                onClick={() => handlePlatformChange('coupang')}
-                className={`p-3 md:p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 hover:-translate-y-1 hover:shadow-lg text-left ${
-                  data.platform === 'coupang'
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="font-bold text-sm md:text-base text-slate-800">🚀 쿠팡</div>
-                <div className="text-xs md:text-sm text-slate-500 mt-1">12+ 장면 자동 생성</div>
-                <p className="text-xs text-orange-600 font-medium mt-1">12장 생성 • 약 324원</p>
-              </button>
-            </div>
           </div>
 
           {/* Product Images */}
@@ -857,7 +833,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               >
                 <div className="text-xl md:text-2xl mb-1">🤖</div>
                 <div className="font-bold text-xs md:text-sm">AI 추천</div>
-                <div className="text-xs text-slate-500">상품에 맞게</div>
+                <div className="text-xs text-slate-500">상품에 맞게 자동 선택</div>
               </button>
               
               <button
@@ -871,7 +847,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               >
                 <div className="text-xl md:text-2xl mb-1">⚡</div>
                 <div className="font-bold text-xs md:text-sm">5장 (간단)</div>
-                <div className="text-xs text-slate-500">저가/단순 상품</div>
+                <div className="text-xs text-slate-500">~135원 (27원 x 5장)</div>
               </button>
               
               <button
@@ -885,7 +861,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               >
                 <div className="text-xl md:text-2xl mb-1">📄</div>
                 <div className="font-bold text-xs md:text-sm">7장 (표준)</div>
-                <div className="text-xs text-slate-500">일반 상품</div>
+                <div className="text-xs text-slate-500">~189원 (27원 x 7장)</div>
               </button>
               
               <button
@@ -899,7 +875,7 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
               >
                 <div className="text-xl md:text-2xl mb-1">📚</div>
                 <div className="font-bold text-xs md:text-sm">9장 (상세)</div>
-                <div className="text-xs text-slate-500">고가/고관여</div>
+                <div className="text-xs text-slate-500">~243원 (27원 x 9장)</div>
               </button>
             </div>
           </div>

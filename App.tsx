@@ -804,25 +804,46 @@ const App: React.FC = () => {
         )}
 
         {state.step === 'processing' && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="w-full max-w-md mb-8">
-              <div className="bg-slate-200 rounded-full h-4 overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-full transition-all duration-500"
-                  style={{ width: `${state.generationProgress?.current || 0}%` }}
+          <div className="flex flex-col items-center justify-center py-20">
+            {/* 원형 프로그레스 */}
+            <div className="relative w-32 h-32 mb-6">
+              <svg className="w-32 h-32 transform -rotate-90">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke="#e5e7eb"
+                  strokeWidth="8"
+                  fill="none"
                 />
-              </div>
-              <div className="text-center mt-4">
-                <span className="text-2xl font-bold text-blue-600">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke="#8b5cf6"
+                  strokeWidth="8"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 56}`}
+                  strokeDashoffset={`${2 * Math.PI * 56 * (1 - (state.generationProgress?.current || 0) / 100)}`}
+                  className="transition-all duration-300"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold text-purple-600">
                   {state.generationProgress?.current || 0}%
                 </span>
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">
-              AI가 상세페이지를 제작하고 있습니다
-            </h3>
-            <p className="text-slate-600 text-lg">
-              {state.generationProgress?.message || '처리 중...'}
+            
+            {/* 메시지 */}
+            <p className="text-lg text-gray-600 mb-4">
+              {state.generationProgress?.message || '상세페이지를 생성하고 있습니다...'}
+            </p>
+            
+            {/* 경과 시간 */}
+            <p className="text-sm text-gray-400">
+              ⏱️ 경과 시간: {elapsedTime}초
             </p>
           </div>
         )}
@@ -843,6 +864,7 @@ const App: React.FC = () => {
               }));
             }}
             onReset={handleReset}
+            onSave={saveToHistory}
           />
         )}
       </main>

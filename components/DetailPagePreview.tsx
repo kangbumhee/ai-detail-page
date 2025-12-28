@@ -8,6 +8,7 @@ interface DetailPagePreviewProps {
   productData: ProductData;
   onSectionUpdate: (sectionId: string, newImageUrl: string) => void;
   onReset: () => void;
+  onSave?: () => void;  // 추가
 }
 
 const LOGIC_LABELS: Record<SalesLogicType, { emoji: string; label: string; color: string }> = {
@@ -25,7 +26,8 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
   generatedPage,
   productData,
   onSectionUpdate,
-  onReset
+  onReset,
+  onSave
 }) => {
   const previewRef = useRef<HTMLDivElement>(null);
   const { sections, thumbnail } = generatedPage;
@@ -131,6 +133,16 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
           >
             🖼️ 전체 JPG 다운로드
           </button>
+          {/* 저장 버튼 */}
+          {onSave && (
+            <button
+              onClick={onSave}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg"
+            >
+              <span>💾</span>
+              <span>히스토리에 저장</span>
+            </button>
+          )}
           <button 
             onClick={onReset}
             className="w-full py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300"
