@@ -131,15 +131,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
           </div>
 
           {/* 요금 안내 */}
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-            <h3 className="text-blue-800 font-bold mb-2 flex items-center gap-2">
-              💰 이미지 생성 요금
-            </h3>
-            <ul className="text-blue-700 text-sm space-y-1">
-              <li>• <strong>Nano Banana:</strong> 이미지 1장당 $0.02 (약 27원)</li>
-              <li>• <strong>Nano Banana Pro:</strong> 이미지 1장당 $0.09~0.12</li>
-              <li>• 상세페이지 1건 (12장): 약 $0.24 (약 320원)</li>
-            </ul>
+          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm font-medium text-green-800 mb-2">💰 이미지 생성 요금</p>
+            <div className="text-xs text-green-700 space-y-1">
+              <p>• 이미지 1장당: <strong>$0.02 (약 27원)</strong></p>
+              <div className="mt-2 pt-2 border-t border-green-200">
+                <p className="font-medium mb-1">📄 상세페이지 예상 비용:</p>
+                <p>• 5장 (간단): ~135원</p>
+                <p>• 7장 (표준): ~189원</p>
+                <p>• 9장 (상세): ~243원</p>
+              </div>
+            </div>
           </div>
 
           {/* 버튼들 */}

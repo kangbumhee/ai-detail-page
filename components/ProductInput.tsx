@@ -560,19 +560,6 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* 제휴 배너 */}
-      <div className="mb-4 p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white text-center">
-        <a 
-          href="https://kie.ai?ref=3b743440b3f2c39583586ee20a441c6a" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 hover:underline"
-        >
-          <span>🤖</span>
-          <span className="font-medium">AI 이미지 생성 도구 Kie.ai 바로가기</span>
-          <span>→</span>
-        </a>
-      </div>
       {toast && (
         <Toast
           message={toast.message}

@@ -171,7 +171,7 @@ export async function generateSectionImage(
   referenceImage?: string  // Base64 원본 제품 이미지
 ): Promise<string> {
   // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
-  const apiKey = getKieApiKey();
+  const apiKey = getGeminiApiKey();
   
   const textInstruction = `
 IMPORTANT TEXT RENDERING:
@@ -264,7 +264,7 @@ ${referenceImage ? 'IMPORTANT: Use the attached reference image as the main prod
 
 export async function generateThumbnail(productData: ProductData): Promise<string> {
   // TODO: Kie.ai API로 변경 필요 - 엔드포인트 및 요청 형식 확인 필요
-  const apiKey = getKieApiKey();
+  const apiKey = getGeminiApiKey();
   const config = productData.thumbnailConfig;
   
   const prompt = `
