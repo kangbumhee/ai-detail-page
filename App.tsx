@@ -548,7 +548,7 @@ const App: React.FC = () => {
           step: 'preview',
           productData: {
             ...decoded.productData,
-            images: decoded.originalImages || decoded.productData?.images || []  // 참고 이미지 복원
+            images: decoded.originalImages || decoded.productData?.images || []
           },
           originalImages: decoded.originalImages || [],
           generatedImages: decoded.images.map((url: string) => ({
@@ -556,6 +556,7 @@ const App: React.FC = () => {
             prompt: ''
           })),
           generatedCopy: decoded.copy,
+          generatedPage: null,  // 이 줄 추가!
           mainImageIndex: decoded.mainImageIndex || 0,
           isEditingImage: false
         });
@@ -569,7 +570,6 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
-    // Reset all state to initial values immediately
     setState({
       step: 'input',
       productData: { 
@@ -587,9 +587,11 @@ const App: React.FC = () => {
       generatedImages: [],
       mainImageIndex: 0,
       generatedCopy: null,
+      generatedPage: null,  // 이 줄 추가!
       isEditingImage: false
     });
   };
+  
 
   // 1. Loading State (Checking Key) - 최초 로딩만 표시
   if (isCheckingKey) {
