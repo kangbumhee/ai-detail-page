@@ -107,9 +107,8 @@ export interface HistoryItem {
   productName: string;
   productData: ProductData;
   generatedImages: GeneratedImage[];
-  generatedCopy: GeneratedCopy | null;
-  generatedPage?: GeneratedDetailPage | null;
+  generatedCopy: GeneratedCopy;
   thumbnail: string;
-  originalImages?: string[];
+  originalImages?: string[];  // 참고 이미지 URL 추가
 }
 

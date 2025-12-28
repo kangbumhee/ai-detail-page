@@ -750,4 +750,52 @@ ${text}
     throw new Error("파일 분석에 실패했습니다.");
   }
 };
+// ============================================
+// 11. 이미지 편집
+// ============================================
+
+export async function editProductImage(imageUrl: string, prompt: string): Promise<string> {
+  const apiKey = getGeminiApiKey();
+  
+  let imageBase64 = imageUrl;
+  if (imageUrl.startsWith('http')) {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    imageBase64 = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  }
+  
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  
+  const editResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: `이 이미지를 다음 지시에 따라 수정해주세요: ${prompt}` },
+            { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
+          ]
+        }],
+        generationConfig: { responseModalities: ['image', 'text'] }
+      })
+    }
+  );
+  
+  const editData = await editResponse.json();
+  const imagePart = editData.candidates?.[0]?.content?.parts?.find(
+    (part: { inlineData?: { mimeType: string; data: string } }) => part.inlineData
+  );
+  
+  if (!imagePart?.inlineData) {
+    throw new Error('이미지 편집 실패');
+  }
+  
+  return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+}
 
