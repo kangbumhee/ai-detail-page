@@ -159,3 +159,176 @@ export function getTheme(category: string): CategoryTheme {
   return CATEGORY_THEMES[category] || CATEGORY_THEMES['기타'];
 }
 
+// ========================================
+// SalesLogicType별 텍스트 스타일 정의
+// ========================================
+
+export interface TextStyleConfig {
+  // 메인 텍스트 (keyMessage)
+  mainSize: string;           // Tailwind 텍스트 크기
+  mainWeight: string;         // 폰트 굵기
+  mainStyle: string;          // 추가 스타일 (italic 등)
+  mainSpacing: string;        // 자간
+  
+  // 서브 텍스트 (subMessage)
+  subSize: string;
+  subWeight: string;
+  subStyle: string;
+  
+  // 레이아웃
+  alignment: 'left' | 'center' | 'right';
+  verticalPosition: 'top' | 'center' | 'bottom';
+  padding: string;
+  gap: string;                // 메인-서브 간격
+  
+  // 배지/라벨
+  showBadge: boolean;
+  badgeText?: string;
+  
+  // 특수 효과
+  animation?: string;
+  decoration?: string;        // 밑줄, 하이라이트 등
+}
+
+export const LOGIC_TYPE_STYLES: Record<string, TextStyleConfig> = {
+  // 후킹 - 시선 강탈, 아주 크게
+  hook: {
+    mainSize: 'text-3xl md:text-5xl lg:text-6xl',
+    mainWeight: 'font-black',
+    mainStyle: '',
+    mainSpacing: 'tracking-tight',
+    subSize: 'text-lg md:text-xl',
+    subWeight: 'font-medium',
+    subStyle: '',
+    alignment: 'center',
+    verticalPosition: 'center',
+    padding: 'p-8 md:p-12',
+    gap: 'mt-4 md:mt-6',
+    showBadge: false,
+    decoration: 'underline decoration-4 underline-offset-8',
+  },
+  
+  // 해결책 - 명확하고 깔끔하게
+  solution: {
+    mainSize: 'text-2xl md:text-4xl',
+    mainWeight: 'font-bold',
+    mainStyle: '',
+    mainSpacing: 'tracking-normal',
+    subSize: 'text-base md:text-lg',
+    subWeight: 'font-normal',
+    subStyle: '',
+    alignment: 'center',
+    verticalPosition: 'center',
+    padding: 'p-6 md:p-10',
+    gap: 'mt-3 md:mt-4',
+    showBadge: true,
+    badgeText: 'SOLUTION',
+  },
+  
+  // 스펙/비교 - 작게, 이미지 집중
+  clarity: {
+    mainSize: 'text-lg md:text-2xl',
+    mainWeight: 'font-semibold',
+    mainStyle: '',
+    mainSpacing: 'tracking-wide',
+    subSize: 'text-sm md:text-base',
+    subWeight: 'font-normal',
+    subStyle: '',
+    alignment: 'left',
+    verticalPosition: 'bottom',
+    padding: 'p-4 md:p-6',
+    gap: 'mt-2',
+    showBadge: true,
+    badgeText: 'SPEC',
+  },
+  
+  // 사회적 증거 - 인용구 스타일
+  socialProof: {
+    mainSize: 'text-xl md:text-3xl',
+    mainWeight: 'font-light',
+    mainStyle: 'italic',
+    mainSpacing: 'tracking-normal',
+    subSize: 'text-sm md:text-base',
+    subWeight: 'font-medium',
+    subStyle: '',
+    alignment: 'center',
+    verticalPosition: 'bottom',
+    padding: 'p-8 md:p-12',
+    gap: 'mt-4',
+    showBadge: false,
+    decoration: 'before:content-["""] after:content-["""]',
+  },
+  
+  // 활용법 - 친근하고 실용적
+  service: {
+    mainSize: 'text-xl md:text-3xl',
+    mainWeight: 'font-bold',
+    mainStyle: '',
+    mainSpacing: 'tracking-normal',
+    subSize: 'text-base md:text-lg',
+    subWeight: 'font-normal',
+    subStyle: '',
+    alignment: 'center',
+    verticalPosition: 'top',
+    padding: 'p-6 md:p-8',
+    gap: 'mt-3',
+    showBadge: true,
+    badgeText: 'HOW TO',
+  },
+  
+  // 신뢰/보장 - 안정감, 신뢰감
+  riskReversal: {
+    mainSize: 'text-xl md:text-2xl',
+    mainWeight: 'font-semibold',
+    mainStyle: '',
+    mainSpacing: 'tracking-wide',
+    subSize: 'text-sm md:text-base',
+    subWeight: 'font-normal',
+    subStyle: '',
+    alignment: 'center',
+    verticalPosition: 'bottom',
+    padding: 'p-6 md:p-8',
+    gap: 'mt-2',
+    showBadge: true,
+    badgeText: '✓ GUARANTEE',
+  },
+  
+  // 브랜드 스토리 - 감성적, 세련됨
+  brandStory: {
+    mainSize: 'text-2xl md:text-4xl',
+    mainWeight: 'font-light',
+    mainStyle: '',
+    mainSpacing: 'tracking-widest',
+    subSize: 'text-base md:text-lg',
+    subWeight: 'font-light',
+    subStyle: 'italic',
+    alignment: 'center',
+    verticalPosition: 'center',
+    padding: 'p-10 md:p-16',
+    gap: 'mt-6',
+    showBadge: false,
+  },
+  
+  // 경쟁사 비교 - 명확한 대비
+  comparison: {
+    mainSize: 'text-xl md:text-3xl',
+    mainWeight: 'font-bold',
+    mainStyle: '',
+    mainSpacing: 'tracking-tight',
+    subSize: 'text-sm md:text-base',
+    subWeight: 'font-medium',
+    subStyle: '',
+    alignment: 'left',
+    verticalPosition: 'center',
+    padding: 'p-6 md:p-8',
+    gap: 'mt-3',
+    showBadge: true,
+    badgeText: 'VS',
+  },
+};
+
+// SalesLogicType에 맞는 텍스트 스타일 가져오기
+export function getTextStyle(logicType: string): TextStyleConfig {
+  return LOGIC_TYPE_STYLES[logicType] || LOGIC_TYPE_STYLES['solution'];
+}
+

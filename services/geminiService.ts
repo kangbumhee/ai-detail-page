@@ -100,7 +100,17 @@ async function pollKieTask(taskId: string, maxAttempts: number = 60, intervalMs:
     if (data.data.state === 'success') {
       const resultJson = JSON.parse(data.data.resultJson);
       if (resultJson.resultUrls && resultJson.resultUrls.length > 0) {
-        return resultJson.resultUrls[0];
+        const tempImageUrl = resultJson.resultUrls[0];
+        
+        // Kie.ai 임시 URL을 Cloudinary로 복사해서 영구 URL 획득 (CORS 해결)
+        try {
+          const { uploadExternalImageToCloudinary } = await import('./cloudinaryService');
+          const permanentUrl = await uploadExternalImageToCloudinary(tempImageUrl, 'detail-sections');
+          return permanentUrl;
+        } catch (uploadError) {
+          console.error('Cloudinary 업로드 실패, 원본 URL 반환:', uploadError);
+          return tempImageUrl;
+        }
       }
       throw new Error('생성된 이미지 URL이 없습니다');
     } else if (data.data.state === 'fail') {
@@ -318,6 +328,7 @@ export async function generateThumbnail(productData: ProductData): Promise<strin
   
   const prompt = `
 Create a professional e-commerce product thumbnail image.
+IMPORTANT: NO TEXT on the image. Clean product photo only.
 
 Product: ${productData.name}
 Category: ${productData.category || '일반'}
@@ -327,16 +338,9 @@ Style: ${config?.style === 'lifestyle' ? 'Lifestyle shot with context' : config?
 ${config?.includeHand ? 'Include a hand model holding or presenting the product naturally.' : ''}
 ${config?.includeModel ? 'Include a Korean model appropriate for the target demographic.' : ''}
 
-${config?.textOverlay ? `
-TEXT OVERLAY:
-- Render this text on the image: "${config.textOverlay}"
-- Position: ${config.textPosition}
-- Style: Bold, modern Korean typography
-- Make sure text is clearly readable
-` : ''}
-
 Requirements:
 - High-quality product photography
+- NO text, NO watermarks, NO titles
 - Eye-catching and click-worthy
 - Korean market aesthetic
 `;

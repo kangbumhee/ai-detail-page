@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { DetailSection, ProductData, GeneratedDetailPage, SalesLogicType } from '../types';
 import { regenerateSection } from '../services/geminiService';
-import { getTheme, CategoryTheme } from '../services/categoryThemes';
+import { getTheme, getTextStyle, CategoryTheme, TextStyleConfig } from '../services/categoryThemes';
 
 interface DetailPagePreviewProps {
   generatedPage: GeneratedDetailPage;
@@ -160,97 +160,112 @@ export const DetailPagePreview: React.FC<DetailPagePreviewProps> = ({
           ref={previewRef}
           className="bg-white shadow-2xl max-w-[600px] mx-auto"
         >
-          {sections.map((section, idx) => (
-            <div key={section.id} className="relative group">
-              
-              {/* 섹션 라벨 */}
-              <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className={`px-2 py-1 rounded text-xs font-bold ${LOGIC_LABELS[section.logicType].color}`}>
-                  {idx + 1}. {LOGIC_LABELS[section.logicType].label}
-                </span>
-              </div>
+          {sections.map((section, idx) => {
+            const textStyle = getTextStyle(section.logicType);
+            
+            return (
+              <div key={section.id} className="relative group overflow-hidden">
+                {/* 섹션 라벨 */}
+                <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${LOGIC_LABELS[section.logicType].color}`}>
+                    {idx + 1}. {LOGIC_LABELS[section.logicType].label}
+                  </span>
+                </div>
 
-              {/* 재생성 버튼 */}
-              {!section.isGenerating && (
-                <button
-                  onClick={() => handleRegenerate(section)}
-                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-bold hover:bg-black/80"
-                >
-                  🔄 다시 생성
-                </button>
-              )}
+                {/* 재생성 버튼 */}
+                {!section.isGenerating && (
+                  <button
+                    onClick={() => handleRegenerate(section)}
+                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-bold hover:bg-black/80"
+                  >
+                    🔄 다시 생성
+                  </button>
+                )}
 
-              {/* 이미지 */}
-              {section.imageUrl ? (
-                <div className="relative w-full">
-                  <img 
-                    src={section.imageUrl} 
-                    alt={section.title}
-                    className="w-full h-auto"
-                  />
-                  
-                  {/* 텍스트 오버레이 - 테마 적용 */}
-                  {(section.keyMessage || section.subMessage) && (
-                    <div 
-                      className={`absolute inset-0 flex flex-col pointer-events-none
-                        ${section.textPosition === 'top' ? 'justify-start' : ''}
-                        ${section.textPosition === 'center' ? 'justify-center' : ''}
-                        ${section.textPosition === 'bottom' ? 'justify-end' : ''}
-                        ${theme.overlayGradient}
-                      `}
-                    >
+                {/* 이미지 */}
+                {section.imageUrl ? (
+                  <>
+                    <img 
+                      src={section.imageUrl} 
+                      alt={section.title}
+                      className="w-full h-auto"
+                    />
+                    
+                    {/* 텍스트 오버레이 - SalesLogicType별 스타일 적용 */}
+                    {(section.keyMessage || section.subMessage) && (
                       <div 
-                        className={`p-6 md:p-10 text-center
-                          ${section.textPosition === 'top' ? 'pt-8 md:pt-16' : ''}
-                          ${section.textPosition === 'bottom' ? 'pb-8 md:pb-16' : ''}
+                        className={`absolute inset-0 flex flex-col pointer-events-none
+                          ${textStyle.verticalPosition === 'top' ? 'justify-start' : ''}
+                          ${textStyle.verticalPosition === 'center' ? 'justify-center' : ''}
+                          ${textStyle.verticalPosition === 'bottom' ? 'justify-end' : ''}
+                          ${textStyle.alignment === 'left' ? 'items-start text-left' : ''}
+                          ${textStyle.alignment === 'center' ? 'items-center text-center' : ''}
+                          ${textStyle.alignment === 'right' ? 'items-end text-right' : ''}
+                          ${theme.overlayGradient}
                         `}
                       >
-                        {/* 섹션 배지 */}
-                        {section.title && (
-                          <span className={`inline-block px-3 py-1 mb-4 ${theme.badgeStyle}`}>
-                            {section.title}
-                          </span>
-                        )}
-                        
-                        {/* 메인 메시지 */}
-                        {section.keyMessage && (
-                          <h2 
-                            className={`text-xl md:text-3xl lg:text-4xl mb-2 md:mb-4 leading-tight
-                              ${theme.headingStyle}
-                              ${section.textStyle === 'light' ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' : 'text-slate-800'}
-                            `}
-                            style={{ wordBreak: 'keep-all' }}
-                          >
-                            {section.keyMessage}
-                          </h2>
-                        )}
-                        
-                        {/* 서브 메시지 */}
-                        {section.subMessage && (
-                          <p 
-                            className={`text-base md:text-xl lg:text-2xl opacity-90
-                              ${theme.bodyStyle}
-                              ${section.textStyle === 'light' ? 'text-white/90' : 'text-slate-600'}
-                            `}
-                          >
-                            {section.subMessage}
-                          </p>
-                        )}
+                        <div className={`${textStyle.padding} max-w-4xl w-full`}>
+                          {/* 배지 */}
+                          {textStyle.showBadge && (
+                            <span className={`inline-block px-3 py-1 mb-4 ${theme.badgeStyle}`}>
+                              {textStyle.badgeText || section.title}
+                            </span>
+                          )}
+                          
+                          {/* 메인 메시지 */}
+                          {section.keyMessage && (
+                            <h2 
+                              className={`
+                                ${textStyle.mainSize}
+                                ${textStyle.mainWeight}
+                                ${textStyle.mainStyle}
+                                ${textStyle.mainSpacing}
+                                leading-tight
+                                ${section.textStyle === 'light' 
+                                  ? 'text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]' 
+                                  : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+                                }
+                                ${textStyle.decoration || ''}
+                              `}
+                              style={{ wordBreak: 'keep-all' }}
+                            >
+                              {section.keyMessage}
+                            </h2>
+                          )}
+                          
+                          {/* 서브 메시지 */}
+                          {section.subMessage && (
+                            <p 
+                              className={`
+                                ${textStyle.gap}
+                                ${textStyle.subSize}
+                                ${textStyle.subWeight}
+                                ${textStyle.subStyle}
+                                ${section.textStyle === 'light' 
+                                  ? 'text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)]' 
+                                  : 'text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]'
+                                }
+                              `}
+                            >
+                              {section.subMessage}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ) : section.isGenerating ? (
-                <div className="w-full aspect-[9/16] bg-slate-100 flex items-center justify-center">
-                  <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full" />
-                </div>
-              ) : (
-                <div className="w-full aspect-[9/16] bg-slate-100 flex items-center justify-center">
-                  <span className="text-slate-400">이미지 생성 실패</span>
-                </div>
-              )}
-            </div>
-          ))}
+                    )}
+                  </>
+                ) : section.isGenerating ? (
+                  <div className="w-full aspect-[9/16] bg-slate-100 flex items-center justify-center">
+                    <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : (
+                  <div className="w-full aspect-[9/16] bg-slate-100 flex items-center justify-center">
+                    <span className="text-slate-400">이미지 생성 실패</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
