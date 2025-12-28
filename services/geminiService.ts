@@ -466,13 +466,25 @@ export const analyzeProductImage = async (imageBase64: string): Promise<{
 }> => {
   const apiKey = getGeminiApiKey();
 
-  // base64에서 data:image 프리픽스 분리
-  const matches = imageBase64.match(/^data:image\/([a-z]+);base64,(.+)$/);
-  if (!matches) {
-    throw new Error('잘못된 이미지 형식입니다.');
+  // 이미 처리된 base64인지 확인 (무한 루프 방지)
+  let mimeType = 'image/jpeg';
+  let base64Data = imageBase64;
+  
+  if (imageBase64.startsWith('data:image/')) {
+    const matches = imageBase64.match(/^data:image\/([a-z]+);base64,(.+)$/);
+    if (matches) {
+      mimeType = `image/${matches[1]}`;
+      base64Data = matches[2];
+    } else {
+      // 매칭 실패시 data: 프리픽스만 제거
+      base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    }
   }
-  const mimeType = `image/${matches[1]}`;
-  const base64Data = matches[2];
+  
+  // base64Data가 너무 짧으면 에러
+  if (!base64Data || base64Data.length < 100) {
+    throw new Error('유효하지 않은 이미지 데이터입니다.');
+  }
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
@@ -484,8 +496,8 @@ export const analyzeProductImage = async (imageBase64: string): Promise<{
       body: JSON.stringify({
         contents: [
           {
-      parts: [
-        {
+            parts: [
+              {
                 text: `이 상품 이미지를 분석해서 JSON 형식으로 답해주세요.
 
 반드시 아래 JSON 형식만 출력하세요 (다른 텍스트 없이):
@@ -496,8 +508,7 @@ export const analyzeProductImage = async (imageBase64: string): Promise<{
   "features": ["특징1", "특징2", "특징3"]
 }
 
-상품명은 네이버 쇼핑에서 검색할 수 있도록 정확하게 작성해주세요.
-예: "플라이밀 단백질 쉐이크 630g", "여에스더 리스펙타 질유산균 30캡슐"`
+상품명은 네이버 쇼핑에서 검색할 수 있도록 정확하게 작성해주세요.`
               },
               {
                 inline_data: {

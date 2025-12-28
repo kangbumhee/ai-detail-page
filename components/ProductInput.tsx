@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { ProductData, Platform, PageLength, ThumbnailConfig } from '../types';
 import { Button } from './Button';
 import { Toast } from './Toast';
-import { searchProductInfo, analyzeFileContent, analyzeProductImage, analyzeImageWithVision } from '../services/geminiService';
+import { searchProductInfo, analyzeFileContent, analyzeProductImage } from '../services/geminiService';
 
 // Handle esm.sh export structure (handle default export if present)
 const pdfjs = (pdfjsLib as any).default ?? pdfjsLib;
@@ -401,25 +401,25 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
       console.log('1단계: Gemini Vision 분석 시작...');
       let analyzed = await analyzeProductImage(imageBase64);
       
-      // 2단계: 상품명 못 찾으면 Google Vision으로 재시도 (글자 없는 상품)
-      if (!analyzed.productName || analyzed.productName.trim() === '') {
-        console.log('Gemini 실패, 2단계: Google Vision 분석 시작...');
-        try {
-          const visionResult = await analyzeImageWithVision(imageBase64);
-          
-          if (visionResult.productName) {
-            analyzed = {
-              productName: visionResult.productName,
-              brand: visionResult.logos[0] || '',
-              category: visionResult.labels[0] || '',
-              features: visionResult.labels.slice(0, 3)
-            };
-            console.log('Google Vision 성공:', analyzed);
-          }
-        } catch (visionError) {
-          console.error('Google Vision 실패:', visionError);
-        }
-      }
+      // 2단계: Google Vision API는 403 에러로 차단되어 비활성화
+      // if (!analyzed.productName || analyzed.productName.trim() === '') {
+      //   console.log('Gemini 실패, 2단계: Google Vision 분석 시작...');
+      //   try {
+      //     const visionResult = await analyzeImageWithVision(imageBase64);
+      //     
+      //     if (visionResult.productName) {
+      //       analyzed = {
+      //         productName: visionResult.productName,
+      //         brand: visionResult.logos[0] || '',
+      //         category: visionResult.labels[0] || '',
+      //         features: visionResult.labels.slice(0, 3)
+      //       };
+      //       console.log('Google Vision 성공:', analyzed);
+      //     }
+      //   } catch (visionError) {
+      //     console.error('Google Vision 실패:', visionError);
+      //   }
+      // }
       
       setAnalyzedProduct(analyzed);
       
@@ -437,31 +437,9 @@ export const ProductInput: React.FC<ProductInputProps> = ({ onSubmit, isLoading 
     } catch (error) {
       console.error('이미지 분석 실패:', error);
       
-      // Gemini 실패 시 Google Vision으로 재시도
-      console.log('Gemini 오류, Google Vision으로 재시도...');
-      try {
-        const visionResult = await analyzeImageWithVision(imageBase64);
-        
-        if (visionResult.productName) {
-          const analyzed = {
-            productName: visionResult.productName,
-            brand: visionResult.logos[0] || '',
-            category: visionResult.labels[0] || '',
-            features: visionResult.labels.slice(0, 3)
-          };
-          
-          setAnalyzedProduct(analyzed);
-          setData(prev => ({ ...prev, name: analyzed.productName }));
-          await handlePriceSearch(analyzed.productName);
-          
-          setToast({ message: `상품 인식: ${analyzed.productName}`, type: 'success' });
-        } else {
-          setToast({ message: '상품을 인식하지 못했습니다. 직접 검색해주세요.', type: 'error' });
-        }
-      } catch (visionError) {
-        console.error('Google Vision도 실패:', visionError);
-        setToast({ message: '이미지 분석에 실패했습니다.', type: 'error' });
-      }
+      // Google Vision API는 403 에러로 차단되어 비활성화
+      // Gemini 실패 시 Google Vision으로 재시도하는 코드 제거
+      setToast({ message: '이미지 분석에 실패했습니다. 직접 검색해주세요.', type: 'error' });
     } finally {
       setIsAnalyzing(false);
     }
