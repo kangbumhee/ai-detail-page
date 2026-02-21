@@ -469,184 +469,37 @@ export async function updateSectionCopy(
 // 8. 기존 함수들 (유지)
 // ========================================
 
-// 상품 이미지 분석 (Gemini Vision)
+// 상품 이미지 분석 (비활성화: 자동 분석 대신 사용자 직접 입력)
 export const analyzeProductImage = async (imageBase64: string): Promise<{
   productName: string;
   brand: string;
   category: string;
   features: string[];
 }> => {
-  const apiKey = getGeminiApiKey();
-
-  // 이미 처리된 base64인지 확인 (무한 루프 방지)
-  let mimeType = 'image/jpeg';
-  let base64Data = imageBase64;
-  
-  if (imageBase64.startsWith('data:image/')) {
-    const matches = imageBase64.match(/^data:image\/([a-z]+);base64,(.+)$/);
-    if (matches) {
-      mimeType = `image/${matches[1]}`;
-      base64Data = matches[2];
-    } else {
-      // 매칭 실패시 data: 프리픽스만 제거
-      base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-    }
-  }
-  
-  // base64Data가 너무 짧으면 에러
-  if (!base64Data || base64Data.length < 100) {
-    throw new Error('유효하지 않은 이미지 데이터입니다.');
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `이 상품 이미지를 분석해서 JSON 형식으로 답해주세요.
-
-반드시 아래 JSON 형식만 출력하세요 (다른 텍스트 없이):
-{
-  "productName": "정확한 상품명 (브랜드 + 제품명 + 용량/수량)",
-  "brand": "브랜드명",
-  "category": "카테고리 (예: 건강식품, 화장품, 식품, 가전 등)",
-  "features": ["특징1", "특징2", "특징3"]
-}
-
-상품명은 네이버 쇼핑에서 검색할 수 있도록 정확하게 작성해주세요.`
-              },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data
-                }
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 500,
-        }
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Gemini Vision 오류:', error);
-    throw new Error('이미지 분석에 실패했습니다.');
-  }
-
-  const data = await response.json();
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    throw new Error('JSON 파싱 실패');
-  } catch (e) {
-    console.error('파싱 오류:', content);
-    return {
-      productName: '',
-      brand: '',
-      category: '',
-      features: []
-    };
-  }
+  // Kie.ai는 이미지 분석(Vision) API를 제공하지 않음
+  // 사용자에게 직접 상품명 입력 유도
+  console.log('이미지 분석: 자동 분석을 건너뛰고 사용자 입력을 기다립니다.');
+  return {
+    productName: '',
+    brand: '',
+    category: '',
+    features: []
+  };
 };
 
-// Google Vision API로 이미지 분석 (글자 없는 상품용)
+// Google Vision API로 이미지 분석 (비활성화: 만료된 API 키 제거)
 export const analyzeImageWithVision = async (imageBase64: string): Promise<{
   productName: string;
   labels: string[];
   logos: string[];
   text: string;
 }> => {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('API 키가 설정되지 않았습니다.');
-  }
-
-  // base64에서 data:image 프리픽스 분리
-  const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-
-  const response = await fetch(
-    `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            image: {
-              content: base64Data
-            },
-            features: [
-              { type: 'LABEL_DETECTION', maxResults: 10 },
-              { type: 'LOGO_DETECTION', maxResults: 5 },
-              { type: 'TEXT_DETECTION', maxResults: 1 },
-              { type: 'WEB_DETECTION', maxResults: 5 }
-            ]
-          }
-        ]
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('Vision API 오류:', error);
-    throw new Error('이미지 분석에 실패했습니다.');
-  }
-
-  const data = await response.json();
-  const result = data.responses[0];
-
-  // 라벨 추출 (예: Plush toy, Stuffed animal, Teddy bear)
-  const labels = result.labelAnnotations?.map((l: any) => l.description) || [];
-  
-  // 로고 추출 (예: Pokemon, Disney, Kakao Friends)
-  const logos = result.logoAnnotations?.map((l: any) => l.description) || [];
-  
-  // 텍스트 추출
-  const text = result.textAnnotations?.[0]?.description || '';
-  
-  // 웹 감지 결과 (가장 정확한 상품명)
-  const webEntities = result.webDetection?.webEntities || [];
-  const bestGuess = result.webDetection?.bestGuessLabels?.[0]?.label || '';
-  
-  // 상품명 결정 (우선순위: 웹감지 > 로고+라벨 > 라벨만)
-  let productName = '';
-  
-  if (bestGuess) {
-    productName = bestGuess;
-  } else if (logos.length > 0 && labels.length > 0) {
-    // 로고 + 첫번째 라벨 조합 (예: "Pokemon Plush toy")
-    productName = `${logos[0]} ${labels[0]}`;
-  } else if (labels.length > 0) {
-    // 상위 2개 라벨 조합
-    productName = labels.slice(0, 2).join(' ');
-  }
-
-  console.log('Vision API 결과:', { productName, labels, logos, text, bestGuess, webEntities });
-
+  console.log('Vision API 비활성화: 사용자 입력을 기다립니다.');
   return {
-    productName,
-    labels,
-    logos,
-    text
+    productName: '',
+    labels: [],
+    logos: [],
+    text: ''
   };
 };
 

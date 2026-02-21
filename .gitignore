@@ -1,15 +1,3 @@
-# Dependencies
-node_modules
-
-# Build output
-dist
-dist-ssr
-
-# Environment variables (API keys - never commit!)
-.env
-.env.local
-.env.*.local
-
 # Logs
 logs
 *.log
@@ -19,19 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Editor / IDE
+node_modules
+dist
+dist-ssr
+*.local
+
+# íê²½ë³ì íì¼ (API í¤ í¬í¨ - ì ë ì»¤ë°íë©´ ìë¨)
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.cursor
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Misc
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+shopgenie-ai---*¹é¾÷*
